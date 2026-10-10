@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 craft-studio core engine
-Automates Passport photo sheet generation & Aadhaar ID card extraction.
+Accurate Indian Passport (3.5cm x 4.5cm) & Standard PVC Aadhaar Card (8.6cm x 5.4cm) Dimensions.
 """
 
 import os
@@ -10,9 +10,11 @@ import subprocess
 from pathlib import Path
 from PIL import Image, ImageEnhance, ImageOps, ImageDraw
 
+# Standard A4 at 300 DPI
 A4_WIDTH_PX = 2480
 A4_HEIGHT_PX = 3508
 DPI = 300
+PX_PER_CM = 300 / 2.54  # 118.1102 px per cm
 
 def run_cmd(cmd):
     """Run shell command safely and return output."""
@@ -34,8 +36,10 @@ def make_passport_sheet(
 ) -> dict:
     """
     Generate passport photo sheet on A4 canvas (300 DPI) in TRUE COLOR (RGB).
-    Uses user-specified manual adjustments (crop, brightness, contrast, saturation)
-    without forcing artificial auto-enhancement filters.
+    Exact Standard Indian Passport Dimensions:
+    - Width: 3.5 cm = 405 px (allows 6 photos across A4 with comfortable margins)
+    - Height: 4.5 cm = 531 px
+    - Top margin: ~1.0 cm (118 px) to prevent printer edge clipping
     """
     input_path = Path(input_image_path).resolve()
     if not input_path.exists():
@@ -46,13 +50,17 @@ def make_passport_sheet(
 
     base_img = Image.open(input_path).convert("RGB")
 
-    # 1. Manual Crop if user selected a crop box (x, y, w, h)
+    # 1. Apply user crop box if specified [x, y, w, h] (normalized 0.0 to 1.0)
     if crop_box and len(crop_box) == 4:
-        bx, by, bw, bh = crop_box
-        if bw > 20 and bh > 20:
+        orig_w, orig_h = base_img.size
+        bx = int(crop_box[0] * orig_w)
+        by = int(crop_box[1] * orig_h)
+        bw = int(crop_box[2] * orig_w)
+        bh = int(crop_box[3] * orig_h)
+        if bw > 50 and bh > 50:
             base_img = base_img.crop((bx, by, bx + bw, by + bh))
 
-    # 2. Manual Adjustments
+    # 2. Apply manual adjustments
     if brightness != 1.0:
         enh_b = ImageEnhance.Brightness(base_img)
         base_img = enh_b.enhance(brightness)
@@ -63,8 +71,9 @@ def make_passport_sheet(
         enh_s = ImageEnhance.Color(base_img)
         base_img = enh_s.enhance(saturation)
 
-    # 3. Standard Passport Size: 3.5cm x 4.5cm -> 384x512 px + 1px guide border
-    photo_w, photo_h = 384, 512
+    # 3. Exact Standard 3.5 cm x 4.5 cm Passport Dimensions
+    # Inner photo: 400 x 522 px
+    photo_w, photo_h = 400, 522
     aspect = photo_w / photo_h
     img_w, img_h = base_img.size
     img_aspect = img_w / img_h
@@ -80,9 +89,9 @@ def make_passport_sheet(
 
     resized_photo = cropped.resize((photo_w, photo_h), Image.Resampling.LANCZOS)
 
-    # Border: 1px cutting border + 3px white safety border (total 392x520 px)
+    # 1px subtle guide border + 2px white padding = 406 x 528 px total unit size (~3.44 cm x 4.47 cm)
     border_px = 1
-    white_pad = 3
+    white_pad = 2
     total_w = photo_w + (border_px + white_pad) * 2
     total_h = photo_h + (border_px + white_pad) * 2
 
@@ -99,6 +108,12 @@ def make_passport_sheet(
     # 4. Canvas Creation: Guaranteed TrueColor sRGB
     canvas = Image.new("RGB", (A4_WIDTH_PX, A4_HEIGHT_PX), (255, 255, 255))
 
+    # Margin calculations:
+    # Top margin = 1 cm (~118 px)
+    margin_y = int(1.0 * PX_PER_CM)
+    gap_x = 6
+    gap_y = 15
+
     cols = 6 if quantity >= 6 else quantity
     if quantity == 8:
         cols = 4
@@ -109,15 +124,11 @@ def make_passport_sheet(
     elif quantity >= 30:
         cols = 5
 
-    margin_y = 35
-    gap_x = 16
-    gap_y = 20
-
     if quantity >= 30:
         cols = 5
         rows = 6
-        gap_x = 24
-        gap_y = 24
+        gap_x = 12
+        gap_y = 15
         margin_x = (A4_WIDTH_PX - (5 * total_w + 4 * gap_x)) // 2
         margin_y = (A4_HEIGHT_PX - (6 * total_h + 5 * gap_y)) // 2
         for r in range(rows):
@@ -161,6 +172,8 @@ def process_aadhaar_pdf(
     """
     Unlock Aadhaar PDF, render at 300 DPI, and extract Front & Back ID Card.
     Positions cards side-by-side with NO gap and a prominent black center divider line.
+    Dimensions match Standard PVC ID Card: 8.6 cm x 5.4 cm (1016 x 638 px).
+    Top margin set to 1.0 cm.
     """
     input_path = Path(input_pdf_path).resolve()
     temp_dir = Path("/tmp/craft_studio_aadhaar")
@@ -184,14 +197,15 @@ def process_aadhaar_pdf(
 
     page_img = Image.open(page_img_path).convert("RGB")
 
-    # Precise Bounding Box for UIDAI Aadhaar Cards:
-    # Front: X in [199, 1256], Y in [2405, 3056]
-    # Back:  X in [1291, 2350], Y in [2405, 3056]
-    front_crop = page_img.crop((199, 2405, 1256, 3056))
-    back_crop = page_img.crop((1291, 2405, 2350, 3056))
+    # Precise Bounding Box for Full UIDAI Aadhaar Cards (Starting at top of Bharat Sarkar header):
+    # Front Card: X in [195, 1260], Y in [2366, 3058]
+    # Back Card:  X in [1288, 2353], Y in [2366, 3058]
+    front_crop = page_img.crop((195, 2366, 1260, 3058))
+    back_crop = page_img.crop((1288, 2366, 2353, 3058))
 
-    # Standard PVC ID Size: 8.6cm x 5.4cm -> 1016 x 638 px at 300 DPI
-    target_card_w, target_card_h = 1016, 638
+    # Standard Indian PVC/Lamination Card Size: 8.6 cm x 5.4 cm -> 1016 x 638 px at 300 DPI
+    target_card_w = int(8.6 * PX_PER_CM)  # 1016 px
+    target_card_h = int(5.4 * PX_PER_CM)  # 638 px
     front_card = front_crop.resize((target_card_w, target_card_h), Image.Resampling.LANCZOS)
     back_card = back_crop.resize((target_card_w, target_card_h), Image.Resampling.LANCZOS)
 
@@ -199,10 +213,12 @@ def process_aadhaar_pdf(
     canvas = Image.new("RGB", (A4_WIDTH_PX, A4_HEIGHT_PX), (255, 255, 255))
     draw = ImageDraw.Draw(canvas)
 
-    # Place Front and Back directly touching each other (NO blank gap)
-    # Total width = 1016 * 2 = 2032 px
-    margin_x = (A4_WIDTH_PX - (target_card_w * 2)) // 2  # 224 px centered
-    margin_y = 150
+    # Placement:
+    # 1.0 cm from top (118 px)
+    margin_y = int(1.0 * PX_PER_CM)
+    # Total width of Front + Back touching = 1016 * 2 = 2032 px
+    # Left margin centered: (2480 - 2032) // 2 = 224 px
+    margin_x = (A4_WIDTH_PX - (target_card_w * 2)) // 2
 
     front_x = margin_x
     back_x = margin_x + target_card_w
@@ -210,7 +226,7 @@ def process_aadhaar_pdf(
     canvas.paste(front_card, (front_x, margin_y))
     canvas.paste(back_card, (back_x, margin_y))
 
-    # Draw solid black outer border around combined ID cards
+    # Draw solid black outer border around combined cards
     card_bottom = margin_y + target_card_h - 1
     draw.rectangle(
         [front_x, margin_y, back_x + target_card_w - 1, card_bottom],

@@ -81,6 +81,17 @@ class CraftStudioHandler(http.server.SimpleHTTPRequestHandler):
             contrast = float(fields.get('contrast', '1.0'))
             sat = float(fields.get('saturation', '1.0'))
 
+            crop_box = None
+            if 'crop_x' in fields and 'crop_w' in fields:
+                try:
+                    cx = float(fields['crop_x'])
+                    cy = float(fields['crop_y'])
+                    cw = float(fields['crop_w'])
+                    ch = float(fields['crop_h'])
+                    crop_box = (cx, cy, cw, ch)
+                except Exception:
+                    crop_box = None
+
             input_path = UPLOAD_DIR / f"upload_{file_info['filename']}"
             with open(input_path, 'wb') as f:
                 f.write(file_info['data'])
@@ -92,6 +103,7 @@ class CraftStudioHandler(http.server.SimpleHTTPRequestHandler):
                 res = make_passport_sheet(
                     str(input_path), str(out_png), str(out_pdf),
                     quantity=qty, border_color=border,
+                    crop_box=crop_box,
                     brightness=bright, contrast=contrast, saturation=sat
                 )
                 res["png_url"] = "/outputs/passport_sheet.png"

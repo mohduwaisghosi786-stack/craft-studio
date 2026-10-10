@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Craft Studio - Passport & Aadhaar Automation</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <title>Owais Internet Cafe - Passport & Aadhaar Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     <style>
         :root {
@@ -18,11 +18,13 @@
             --muted: #94a3b8;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
-        body { background: var(--bg); color: var(--text); padding: 30px 20px; min-height: 100vh; }
-        .container { max-width: 980px; margin: 0 auto; }
-        header { text-align: center; margin-bottom: 35px; }
-        h1 { font-size: 2.3rem; font-weight: 700; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        p.subtitle { color: var(--muted); margin-top: 6px; font-size: 1.05rem; }
+        body { background: var(--bg); color: var(--text); padding: 25px 20px; min-height: 100vh; }
+        .container { max-width: 1020px; margin: 0 auto; }
+        
+        header { text-align: center; margin-bottom: 30px; }
+        .brand-badge { display: inline-block; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); padding: 5px 16px; border-radius: 20px; color: #60a5fa; font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        h1 { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        p.subtitle { color: #a78bfa; margin-top: 5px; font-size: 1.05rem; font-weight: 600; }
         
         .tabs { display: flex; gap: 12px; margin-bottom: 25px; justify-content: center; }
         .tab-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 12px 28px; border-radius: 12px; font-size: 1.05rem; cursor: pointer; transition: 0.2s; font-weight: 600; }
@@ -40,7 +42,6 @@
         .dropzone:hover { border-color: var(--primary); background: rgba(59, 130, 246, 0.05); }
         .dropzone p { color: var(--muted); margin-top: 6px; font-size: 0.95rem; }
 
-        /* Interactive Crop & Live Tuning Panel */
         .crop-container { display: none; margin-top: 20px; background: #070b14; border: 1px solid var(--border); border-radius: 12px; padding: 15px; }
         .crop-box-wrapper { max-height: 420px; overflow: hidden; background: #000; border-radius: 8px; }
         .crop-box-wrapper img { max-width: 100%; display: block; }
@@ -69,8 +70,9 @@
 <body>
     <div class="container">
         <header>
-            <h1>⚡ Craft Studio</h1>
-            <p class="subtitle">Standard Indian Dimensions: Passport (3.5 × 4.5 cm) & Aadhaar PVC (8.6 × 5.4 cm)</p>
+            <span class="brand-badge">⚡ Professional Print System</span>
+            <h1>Owais Internet Cafe Studio</h1>
+            <p class="subtitle">Crafted by Mohd Uwais Ghosi • Passport Photos & Aadhaar Print Suite</p>
         </header>
 
         <div class="tabs">
@@ -84,7 +86,7 @@
                 <div class="dropzone" onclick="document.getElementById('file-passport').click()">
                     <span style="font-size: 2.2rem;">📁</span>
                     <h3 id="passport-file-label" style="margin-top: 8px;">Select Photo</h3>
-                    <p>Click or Drop Photo (JPG, PNG, WebP) - With Interactive Live Crop & Sliders</p>
+                    <p>Click or Drop Photo (JPG, PNG, WebP) - Interactive Crop & Live Sliders</p>
                     <input type="file" id="file-passport" accept="image/*" style="display:none" onchange="fileSelected('passport')">
                 </div>
 
@@ -126,10 +128,10 @@
                     <div>
                         <label>Photos Quantity (A4 Sheet):</label>
                         <select id="pass-qty">
-                            <option value="6">6 Photos (Standard 3.5cm × 4.5cm Row - 1cm Top Margin)</option>
-                            <option value="8">8 Photos (2 Rows)</option>
-                            <option value="10">10 Photos (2 Rows)</option>
-                            <option value="12">12 Photos (2 Rows)</option>
+                            <option value="6">6 Photos (Single Row - 1.5mm Gap & Cut Guide)</option>
+                            <option value="8">8 Photos (2 Rows of 4)</option>
+                            <option value="10">10 Photos (2 Rows of 5)</option>
+                            <option value="12">12 Photos (2 Rows of 6)</option>
                             <option value="30">30 Photos (Full A4 Page)</option>
                         </select>
                     </div>
@@ -143,7 +145,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="margin-top: 25px;">⚡ Generate Passport Sheet (3.5 × 4.5 cm)</button>
+                <button type="submit" class="btn btn-primary" style="margin-top: 25px;">⚡ Generate Passport Sheet (Single Row)</button>
             </form>
         </div>
 
@@ -160,10 +162,10 @@
                 <div style="margin-top: 20px;">
                     <label>Aadhaar PDF Password (Visible Text - First 4 Letters + Birth Year):</label>
                     <input type="text" id="aadhaar-pw" placeholder="e.g. MOHD1998 (Enter password directly)">
-                    <p style="color: var(--muted); font-size: 0.85rem; margin-top: 5px;">ℹ️ Password visible mode on hai taaki galti na ho.</p>
+                    <p style="color: var(--muted); font-size: 0.85rem; margin-top: 5px;">ℹ️ Calibrated for 65 × 95 mm Pouch with 3.5mm thermal seal.</p>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="margin-top: 25px;">⚡ Extract & Format Full ID Card (Standard 8.6 × 5.4 cm)</button>
+                <button type="submit" class="btn btn-primary" style="margin-top: 25px;">⚡ Extract & Format Aadhaar Card (65 × 95 mm Pouch)</button>
             </form>
         </div>
 

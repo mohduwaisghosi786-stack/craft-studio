@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-craft-studio Native Desktop GUI
-Built using PyGObject (GTK 3) - Modern, clean, fast Linux Desktop Application.
-Supports exact 3.5x4.5cm Passport photos and 65x95mm Lamination Pouch Aadhaar Cards.
+Owais Internet Cafe - Passport & Aadhaar Studio
+Created by Mohd Uwais Ghosi
+Native Linux Desktop Application (GTK 3 + Custom Modern Styling).
 """
 
 import sys
@@ -12,168 +12,328 @@ from pathlib import Path
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib, GdkPixbuf
+from gi.repository import Gtk, GLib, GdkPixbuf, Gdk
 
 from engine import make_passport_sheet, process_aadhaar_pdf, print_file
 
-class CraftStudioWindow(Gtk.Window):
+CSS_STYLE = b"""
+window {
+    background-color: #0b0f19;
+    color: #f1f5f9;
+    font-family: 'Outfit', 'Inter', 'Noto Sans', sans-serif;
+}
+
+headerbar {
+    background: #111827;
+    border-bottom: 1px solid #1f2937;
+}
+
+.brand-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #38bdf8;
+}
+
+.brand-credit {
+    font-size: 11px;
+    color: #a78bfa;
+    font-weight: 600;
+}
+
+notebook {
+    background: transparent;
+    border: none;
+}
+
+notebook tab {
+    background: #131b2e;
+    color: #94a3b8;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid #23304d;
+    margin-right: 4px;
+}
+
+notebook tab:checked {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #3b82f6;
+}
+
+.card-panel {
+    background-color: #131b2e;
+    border: 1px solid #23304d;
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.preview-container {
+    background-color: #070b14;
+    border: 2px dashed #334155;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 12px 20px;
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.btn-print {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 800;
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+}
+
+.btn-print:hover {
+    background: linear-gradient(135deg, #34d399, #10b981);
+}
+
+entry, combobox, combobox text {
+    background-color: #0c1424;
+    color: #f8fafc;
+    border: 1px solid #23304d;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+entry:focus, combobox:focus {
+    border-color: #38bdf8;
+}
+
+scale trough {
+    background-color: #1e293b;
+    border-radius: 6px;
+    min-height: 8px;
+}
+
+scale highlight {
+    background-color: #38bdf8;
+    border-radius: 6px;
+}
+"""
+
+class OwaisCafeStudio(Gtk.Window):
     def __init__(self):
-        super().__init__(title="Craft Studio - Passport & Aadhaar")
-        self.set_default_size(900, 740)
-        self.set_border_width(15)
+        super().__init__(title="Owais Internet Cafe - Passport & Aadhaar Studio")
+        self.set_default_size(1050, 780)
+        self.set_border_width(18)
         self.set_position(Gtk.WindowPosition.CENTER)
+
+        # Apply Modern Dark Theme CSS
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(CSS_STYLE)
+        screen = Gdk.Screen.get_default()
+        style_ctx = Gtk.StyleContext()
+        style_ctx.add_provider_for_screen(screen, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self.passport_file = None
         self.aadhaar_file = None
         self.current_result = None
 
-        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=15)
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
         self.add(main_box)
 
-        # Header Title
-        title_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        # 🌟 Header Branding
+        header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=15)
+        title_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        
         lbl_title = Gtk.Label()
-        lbl_title.set_markup("<span size='xx-large' weight='bold' foreground='#3b82f6'>⚡ Craft Studio</span>")
-        lbl_sub = Gtk.Label(label="Indian Passport (3.5 × 4.5 cm) & 65 × 95 mm Lamination Pouch System")
-        title_box.pack_start(lbl_title, False, False, 0)
-        title_box.pack_start(lbl_sub, False, False, 0)
-        main_box.pack_start(title_box, False, False, 0)
+        lbl_title.set_markup("<span class='brand-title'>⚡ Owais Internet Cafe Studio</span>")
+        lbl_title.set_xalign(0)
+        
+        lbl_credit = Gtk.Label()
+        lbl_credit.set_markup("<span class='brand-credit'>Crafted by Mohd Uwais Ghosi</span> • <i>Passport Photos & Aadhaar Print Suite</i>")
+        lbl_credit.set_xalign(0)
 
-        # Notebook (Tabs)
+        title_vbox.pack_start(lbl_title, False, False, 0)
+        title_vbox.pack_start(lbl_credit, False, False, 0)
+        header_box.pack_start(title_vbox, True, True, 0)
+
+        main_box.pack_start(header_box, False, False, 0)
+
+        # 2-Column Split: Left Controls (Tabs) | Right Live HD Preview
+        paned = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=18)
+        main_box.pack_start(paned, True, True, 0)
+
+        # === LEFT PANEL: CONTROLS ===
+        left_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        left_box.set_size_request(460, -1)
+        paned.pack_start(left_box, False, False, 0)
+
         self.notebook = Gtk.Notebook()
-        main_box.pack_start(self.notebook, False, False, 0)
+        left_box.pack_start(self.notebook, False, False, 0)
 
-        # TAB 1: Passport Photos
-        tab1_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        tab1_box.set_border_width(15)
+        # --- TAB 1: Passport Photos ---
+        tab_pass = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        tab_pass.set_border_width(12)
+        tab_pass.get_style_context().add_class('card-panel')
 
-        btn_pass_file = Gtk.FileChooserButton(title="Select Passport Photo", action=Gtk.FileChooserAction.OPEN)
-        btn_pass_file.connect("file-set", self.on_passport_file_set)
-        tab1_box.pack_start(Gtk.Label(label="Select Source Photo (JPG, PNG, WebP):", xalign=0), False, False, 0)
-        tab1_box.pack_start(btn_pass_file, False, False, 0)
+        tab_pass.pack_start(Gtk.Label(label="1. Select Customer Photo:", xalign=0), False, False, 0)
+        btn_pass = Gtk.FileChooserButton(title="Select Customer Photo", action=Gtk.FileChooserAction.OPEN)
+        btn_pass.connect("file-set", self.on_passport_file_set)
+        tab_pass.pack_start(btn_pass, False, False, 0)
 
-        # Quantity choice
-        box_qty = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        box_qty.pack_start(Gtk.Label(label="Quantity:"), False, False, 0)
+        # Quantity
+        tab_pass.pack_start(Gtk.Label(label="2. Quantity & Layout:", xalign=0), False, False, 0)
         self.combo_qty = Gtk.ComboBoxText()
-        self.combo_qty.append("6", "6 Photos (1 Single Row - 1.5mm Gap & Cutting Guides)")
-        self.combo_qty.append("8", "8 Photos (2 Rows)")
-        self.combo_qty.append("10", "10 Photos (2 Rows)")
-        self.combo_qty.append("12", "12 Photos (2 Rows)")
+        self.combo_qty.append("6", "6 Photos (1 Single Row - 1.5mm Gap & Cut Guide)")
+        self.combo_qty.append("8", "8 Photos (2 Rows of 4)")
+        self.combo_qty.append("10", "10 Photos (2 Rows of 5)")
+        self.combo_qty.append("12", "12 Photos (2 Rows of 6)")
         self.combo_qty.append("30", "30 Photos (Full A4 Page)")
         self.combo_qty.set_active(0)
-        box_qty.pack_start(self.combo_qty, True, True, 0)
-        tab1_box.pack_start(box_qty, False, False, 0)
+        tab_pass.pack_start(self.combo_qty, False, False, 0)
 
-        # Manual Tuning Sliders in GUI
-        box_tune = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=15)
-        
+        # Tuning Sliders
+        tab_pass.pack_start(Gtk.Label(label="3. Photo Tuning:", xalign=0), False, False, 0)
+        box_tune = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+
         # Brightness
-        box_tune.pack_start(Gtk.Label(label="Brightness:"), False, False, 0)
+        b_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        b_box.pack_start(Gtk.Label(label="Brightness:"), False, False, 0)
         self.adj_b = Gtk.Adjustment(value=1.0, lower=0.6, upper=1.5, step_increment=0.05)
         scale_b = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=self.adj_b)
         scale_b.set_digits(2)
-        box_tune.pack_start(scale_b, True, True, 0)
+        b_box.pack_start(scale_b, True, True, 0)
+        box_tune.pack_start(b_box, False, False, 0)
 
         # Contrast
-        box_tune.pack_start(Gtk.Label(label="Contrast:"), False, False, 0)
+        c_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        c_box.pack_start(Gtk.Label(label="Contrast:"), False, False, 0)
         self.adj_c = Gtk.Adjustment(value=1.0, lower=0.6, upper=1.5, step_increment=0.05)
         scale_c = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=self.adj_c)
         scale_c.set_digits(2)
-        box_tune.pack_start(scale_c, True, True, 0)
+        c_box.pack_start(scale_c, True, True, 0)
+        box_tune.pack_start(c_box, False, False, 0)
 
-        tab1_box.pack_start(box_tune, False, False, 0)
+        tab_pass.pack_start(box_tune, False, False, 0)
 
         # Generate Button
-        self.btn_gen_passport = Gtk.Button(label="⚡ Generate Passport Sheet (6 Photos - Single Row)")
-        self.btn_gen_passport.connect("clicked", self.on_generate_passport)
-        tab1_box.pack_start(self.btn_gen_passport, False, False, 0)
+        self.btn_gen_pass = Gtk.Button(label="⚡ Generate Passport Sheet")
+        self.btn_gen_pass.get_style_context().add_class('btn-primary')
+        self.btn_gen_pass.connect("clicked", self.on_gen_passport)
+        tab_pass.pack_start(self.btn_gen_pass, False, False, 0)
 
-        self.notebook.append_page(tab1_box, Gtk.Label(label="📷 Passport Photos"))
+        self.notebook.append_page(tab_pass, Gtk.Label(label="📷 Passport Photos"))
 
-        # TAB 2: Aadhaar Card
-        tab2_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        tab2_box.set_border_width(15)
+        # --- TAB 2: Aadhaar Card ---
+        tab_aadh = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        tab_aadh.set_border_width(12)
+        tab_aadh.get_style_context().add_class('card-panel')
 
-        btn_aadh_file = Gtk.FileChooserButton(title="Select Aadhaar PDF", action=Gtk.FileChooserAction.OPEN)
-        btn_aadh_file.connect("file-set", self.on_aadhaar_file_set)
-        tab2_box.pack_start(Gtk.Label(label="Select e-Aadhaar PDF:", xalign=0), False, False, 0)
-        tab2_box.pack_start(btn_aadh_file, False, False, 0)
+        tab_aadh.pack_start(Gtk.Label(label="1. Select e-Aadhaar PDF:", xalign=0), False, False, 0)
+        btn_aadh = Gtk.FileChooserButton(title="Select e-Aadhaar PDF", action=Gtk.FileChooserAction.OPEN)
+        btn_aadh.connect("file-set", self.on_aadhaar_file_set)
+        tab_aadh.pack_start(btn_aadh, False, False, 0)
 
-        # Visible Password Entry
-        box_pw = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        box_pw.pack_start(Gtk.Label(label="PDF Password (Visible):"), False, False, 0)
+        tab_aadh.pack_start(Gtk.Label(label="2. PDF Password (Visible):", xalign=0), False, False, 0)
         self.entry_pw = Gtk.Entry()
         self.entry_pw.set_visibility(True)
-        self.entry_pw.set_placeholder_text("e.g. MOHD1998 (Enter directly)")
-        box_pw.pack_start(self.entry_pw, True, True, 0)
-        tab2_box.pack_start(box_pw, False, False, 0)
+        self.entry_pw.set_placeholder_text("e.g. MOHD1998 (Enter password directly)")
+        tab_aadh.pack_start(self.entry_pw, False, False, 0)
 
-        # Generate Aadhaar Button
-        self.btn_gen_aadhaar = Gtk.Button(label="⚡ Extract ID Card (Exact 65 × 95 mm Pouch Fit)")
-        self.btn_gen_aadhaar.connect("clicked", self.on_generate_aadhaar)
-        tab2_box.pack_start(self.btn_gen_aadhaar, False, False, 0)
+        tab_aadh.pack_start(Gtk.Label(label="ℹ️ Calibrated for 65 × 95 mm Pouch (3.5mm Seal)", xalign=0), False, False, 0)
 
-        self.notebook.append_page(tab2_box, Gtk.Label(label="🪪 Aadhaar Card (65 × 95 mm)"))
+        self.btn_gen_aadh = Gtk.Button(label="⚡ Extract & Format Aadhaar Card")
+        self.btn_gen_aadh.get_style_context().add_class('btn-primary')
+        self.btn_gen_aadh.connect("clicked", self.on_gen_aadhaar)
+        tab_aadh.pack_start(self.btn_gen_aadh, False, False, 0)
 
-        # Preview Area
-        frame_preview = Gtk.Frame(label="Preview & Brother Printer Controls")
-        frame_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        frame_box.set_border_width(12)
-        frame_preview.add(frame_box)
+        self.notebook.append_page(tab_aadh, Gtk.Label(label="🪪 Aadhaar Card (65 × 95mm)"))
 
-        # Scrolled Window for Preview
-        scrolled = Gtk.ScrolledWindow()
-        scrolled.set_min_content_height(300)
-        self.img_preview = Gtk.Image()
-        scrolled.add(self.img_preview)
-        frame_box.pack_start(scrolled, True, True, 0)
+        # --- PRINTER SETTINGS BOX ---
+        print_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        print_box.get_style_context().add_class('card-panel')
+        
+        lbl_pr_title = Gtk.Label()
+        lbl_pr_title.set_markup("<span weight='bold' foreground='#34d399'>🖨️ Brother DCP-T710W Printer Controls</span>")
+        lbl_pr_title.set_xalign(0)
+        print_box.pack_start(lbl_pr_title, False, False, 0)
 
-        # Printer settings box
-        print_opts_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=15)
-        print_opts_box.pack_start(Gtk.Label(label="Printer:"), False, False, 0)
+        # Printer Target & Color Mode
+        p_row1 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        p_row1.pack_start(Gtk.Label(label="Target:"), False, False, 0)
         self.combo_printer = Gtk.ComboBoxText()
-        self.combo_printer.append("Brother-DCP-T710W-USB", "Brother DCP-T710W (USB)")
-        self.combo_printer.append("Brother-DCP-T710W-WiFi", "Brother DCP-T710W (WiFi)")
+        self.combo_printer.append("Brother-DCP-T710W-USB", "Brother (USB)")
+        self.combo_printer.append("Brother-DCP-T710W-WiFi", "Brother (WiFi)")
         self.combo_printer.set_active(0)
-        print_opts_box.pack_start(self.combo_printer, False, False, 0)
+        p_row1.pack_start(self.combo_printer, True, True, 0)
 
-        print_opts_box.pack_start(Gtk.Label(label="Media:"), False, False, 0)
-        self.combo_media = Gtk.ComboBoxText()
-        self.combo_media.append("BrotherGlossyR", "Glossy Photo Paper")
-        self.combo_media.append("Plain", "Plain Paper")
-        self.combo_media.set_active(0)
-        print_opts_box.pack_start(self.combo_media, False, False, 0)
-
-        print_opts_box.pack_start(Gtk.Label(label="Color Mode:"), False, False, 0)
+        p_row1.pack_start(Gtk.Label(label="Mode:"), False, False, 0)
         self.combo_color = Gtk.ComboBoxText()
         self.combo_color.append("Color", "Color (Photo/Card)")
         self.combo_color.append("Mono", "Black & White (Mono)")
         self.combo_color.set_active(0)
-        print_opts_box.pack_start(self.combo_color, False, False, 0)
+        p_row1.pack_start(self.combo_color, True, True, 0)
+        print_box.pack_start(p_row1, False, False, 0)
 
-        print_opts_box.pack_start(Gtk.Label(label="Quality:"), False, False, 0)
+        # Media & Quality
+        p_row2 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        p_row2.pack_start(Gtk.Label(label="Paper:"), False, False, 0)
+        self.combo_media = Gtk.ComboBoxText()
+        self.combo_media.append("BrotherGlossyR", "Glossy Photo Paper")
+        self.combo_media.append("Plain", "Plain Paper")
+        self.combo_media.set_active(0)
+        p_row2.pack_start(self.combo_media, True, True, 0)
+
+        p_row2.pack_start(Gtk.Label(label="Quality:"), False, False, 0)
         self.combo_quality = Gtk.ComboBoxText()
-        self.combo_quality.append("Normal", "Normal (Recommended)")
+        self.combo_quality.append("Normal", "Normal (Standard)")
         self.combo_quality.append("High", "High Quality")
         self.combo_quality.append("PlainFast", "Fast Draft")
         self.combo_quality.set_active(0)
-        print_opts_box.pack_start(self.combo_quality, True, True, 0)
+        p_row2.pack_start(self.combo_quality, True, True, 0)
+        print_box.pack_start(p_row2, False, False, 0)
 
-        frame_box.pack_start(print_opts_box, False, False, 0)
-
-        # Print & Status
-        action_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=15)
-        self.btn_print = Gtk.Button(label="🖨️ Direct Print Sheet (100% True Scale)")
+        # Print Trigger Button
+        self.btn_print = Gtk.Button(label="🖨️ Direct Print (100% True Scale)")
+        self.btn_print.get_style_context().add_class('btn-print')
         self.btn_print.set_sensitive(False)
         self.btn_print.connect("clicked", self.on_print_clicked)
-        action_box.pack_start(self.btn_print, True, True, 0)
+        print_box.pack_start(self.btn_print, False, False, 0)
 
-        self.lbl_status = Gtk.Label(label="Ready")
-        action_box.pack_start(self.lbl_status, True, True, 0)
-        frame_box.pack_start(action_box, False, False, 0)
+        left_box.pack_start(print_box, False, False, 0)
 
-        main_box.pack_start(frame_preview, True, True, 0)
+        # === RIGHT PANEL: FULL PREVIEW WINDOW ===
+        right_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        paned.pack_start(right_box, True, True, 0)
+
+        prev_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        lbl_prev_title = Gtk.Label()
+        lbl_prev_title.set_markup("<span weight='bold' font='14px'>📄 A4 Sheet Live Preview</span>")
+        lbl_prev_title.set_xalign(0)
+        prev_header.pack_start(lbl_prev_title, True, True, 0)
+
+        self.lbl_status = Gtk.Label(label="Ready for input")
+        prev_header.pack_start(self.lbl_status, False, False, 0)
+        right_box.pack_start(prev_header, False, False, 0)
+
+        # Scrolled Preview Canvas
+        self.preview_scrolled = Gtk.ScrolledWindow()
+        self.preview_scrolled.get_style_context().add_class('preview-container')
+        self.preview_scrolled.set_min_content_height(550)
+        
+        self.img_preview = Gtk.Image()
+        self.preview_scrolled.add(self.img_preview)
+        right_box.pack_start(self.preview_scrolled, True, True, 0)
 
     def on_passport_file_set(self, widget):
         self.passport_file = widget.get_filename()
@@ -181,18 +341,18 @@ class CraftStudioWindow(Gtk.Window):
     def on_aadhaar_file_set(self, widget):
         self.aadhaar_file = widget.get_filename()
 
-    def on_generate_passport(self, widget):
+    def on_gen_passport(self, widget):
         if not self.passport_file:
             self.lbl_status.set_text("❌ Please select a photo first!")
             return
         qty = int(self.combo_qty.get_active_id())
         b = self.adj_b.get_value()
         c = self.adj_c.get_value()
-        self.lbl_status.set_text("⏳ Generating single row passport sheet...")
+        self.lbl_status.set_text("⏳ Generating passport sheet...")
 
-        threading.Thread(target=self._process_passport_thread, args=(qty, b, c)).start()
+        threading.Thread(target=self._process_pass_thread, args=(qty, b, c)).start()
 
-    def _process_passport_thread(self, qty, b, c):
+    def _process_pass_thread(self, qty, b, c):
         out_png = "/tmp/craft_gui_passport.png"
         out_pdf = "/tmp/craft_gui_passport.pdf"
         try:
@@ -202,16 +362,16 @@ class CraftStudioWindow(Gtk.Window):
         except Exception as e:
             GLib.idle_add(self.lbl_status.set_text, f"❌ Error: {str(e)}")
 
-    def on_generate_aadhaar(self, widget):
+    def on_gen_aadhaar(self, widget):
         if not self.aadhaar_file:
             self.lbl_status.set_text("❌ Please select an Aadhaar PDF first!")
             return
         pw = self.entry_pw.get_text()
         self.lbl_status.set_text("⏳ Extracting 65 × 95 mm Pouch Aadhaar Card...")
 
-        threading.Thread(target=self._process_aadhaar_thread, args=(pw,)).start()
+        threading.Thread(target=self._process_aadh_thread, args=(pw,)).start()
 
-    def _process_aadhaar_thread(self, pw):
+    def _process_aadh_thread(self, pw):
         out_png = "/tmp/craft_gui_aadhaar.png"
         out_pdf = "/tmp/craft_gui_aadhaar.pdf"
         try:
@@ -226,7 +386,8 @@ class CraftStudioWindow(Gtk.Window):
 
     def _update_preview(self, png_path, status_text):
         try:
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(png_path, 440, 320, True)
+            # Scale preview nicely to fit view
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(png_path, 520, 720, True)
             self.img_preview.set_from_pixbuf(pixbuf)
             self.btn_print.set_sensitive(True)
             self.lbl_status.set_text(status_text)
@@ -252,7 +413,7 @@ class CraftStudioWindow(Gtk.Window):
             GLib.idle_add(self.lbl_status.set_text, f"❌ Print Error: {str(e)}")
 
 def main():
-    app = CraftStudioWindow()
+    app = OwaisCafeStudio()
     app.connect("destroy", Gtk.main_quit)
     app.show_all()
     Gtk.main()

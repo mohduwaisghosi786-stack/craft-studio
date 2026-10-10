@@ -43,11 +43,24 @@ def make_passport_sheet(
     temp_dir.mkdir(parents=True, exist_ok=True)
     single_photo = temp_dir / "single_photo.png"
 
+    # Enhance image using PhotoCraft CLI engine (Auto-Contrast, Auto-Color, Clean Rendering)
+    photocraft_enhanced = temp_dir / "enhanced_photocraft.png"
+    try:
+        run_cmd(
+            f'photocraft-cli run "{input_path}" '
+            f'--cmd image.autoContrast --cmd image.autoColor '
+            f'--out "{photocraft_enhanced}"'
+        )
+        source_img = photocraft_enhanced
+    except Exception as e:
+        # Fallback to direct input if photocraft-cli throws
+        source_img = input_path
+
     # Standard Passport size: 3.5cm x 4.5cm -> ~413x531 px at 300 DPI
     # Border: 1px subtle gray cutting guide, 3px white safety margin
     crop_w, crop_h = 384, 512
     cmd_crop = (
-        f'magick "{input_path}" -resize {crop_w}x{crop_h}^ -gravity center -extent {crop_w}x{crop_h} '
+        f'magick "{source_img}" -resize {crop_w}x{crop_h}^ -gravity center -extent {crop_w}x{crop_h} '
         f'-bordercolor "{border_color}" -border 1 -bordercolor white -border 3 "{single_photo}"'
     )
     run_cmd(cmd_crop)

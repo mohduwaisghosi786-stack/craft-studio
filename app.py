@@ -124,8 +124,11 @@ class CraftStudioHandler(http.server.SimpleHTTPRequestHandler):
             out_png = OUTPUT_DIR / "aadhaar_id_sheet.png"
             out_pdf = OUTPUT_DIR / "aadhaar_id_sheet.pdf"
 
+            b = float(fields.get('brightness', 1.0))
+            c = float(fields.get('contrast', 1.0))
+
             try:
-                res = process_aadhaar_pdf(str(input_path), str(out_png), str(out_pdf), password=pw)
+                res = process_aadhaar_pdf(str(input_path), str(out_png), str(out_pdf), password=pw, brightness=b, contrast=c)
                 if res.get("status") == "success":
                     res["png_url"] = "/outputs/aadhaar_id_sheet.png"
                     res["pdf_url"] = "/outputs/aadhaar_id_sheet.pdf"

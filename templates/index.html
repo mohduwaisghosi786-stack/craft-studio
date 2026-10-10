@@ -165,6 +165,22 @@
                     <p style="color: var(--muted); font-size: 0.85rem; margin-top: 5px;">ℹ️ Calibrated for 65 × 95 mm Pouch with 3.5mm thermal seal.</p>
                 </div>
 
+                <div class="adjust-panel" id="aadhaar-adjust" style="display:block; margin-top: 15px;">
+                    <div class="adjust-title">
+                        <span>✨ Aadhaar Card Tuning</span>
+                    </div>
+                    <div class="slider-group">
+                        <label>Brightness:</label>
+                        <input type="range" id="aadh-bright" min="0.7" max="1.4" step="0.05" value="1.0" oninput="document.getElementById('aadh-bright-val').innerText = this.value">
+                        <span class="slider-val" id="aadh-bright-val">1.0</span>
+                    </div>
+                    <div class="slider-group">
+                        <label>Contrast:</label>
+                        <input type="range" id="aadh-contrast" min="0.7" max="1.4" step="0.05" value="1.0" oninput="document.getElementById('aadh-contrast-val').innerText = this.value">
+                        <span class="slider-val" id="aadh-contrast-val">1.0</span>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn btn-primary" style="margin-top: 25px;">⚡ Extract & Format Aadhaar Card (65 × 95 mm Pouch)</button>
             </form>
         </div>
@@ -347,6 +363,8 @@
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
             formData.append('password', document.getElementById('aadhaar-pw').value);
+            formData.append('brightness', document.getElementById('aadh-bright').value);
+            formData.append('contrast', document.getElementById('aadh-contrast').value);
 
             const res = await fetch('/api/aadhaar', { method: 'POST', body: formData });
             const data = await res.json();

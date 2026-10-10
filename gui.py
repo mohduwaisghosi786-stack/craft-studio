@@ -250,6 +250,27 @@ class UwaisCafeStudio(Gtk.Window):
         self.entry_pw.set_placeholder_text("e.g. MOHD1998 (Enter password directly)")
         tab_aadh.pack_start(self.entry_pw, False, False, 0)
 
+        tab_aadh.pack_start(Gtk.Label(label="3. Aadhaar Tuning (Brightness/Contrast):", xalign=0), False, False, 0)
+        box_tune_a = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+
+        ba_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        ba_box.pack_start(Gtk.Label(label="Brightness:"), False, False, 0)
+        self.adj_ba = Gtk.Adjustment(value=1.0, lower=0.6, upper=1.5, step_increment=0.05)
+        scale_ba = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=self.adj_ba)
+        scale_ba.set_digits(2)
+        ba_box.pack_start(scale_ba, True, True, 0)
+        box_tune_a.pack_start(ba_box, False, False, 0)
+
+        ca_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        ca_box.pack_start(Gtk.Label(label="Contrast:"), False, False, 0)
+        self.adj_ca = Gtk.Adjustment(value=1.0, lower=0.6, upper=1.5, step_increment=0.05)
+        scale_ca = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=self.adj_ca)
+        scale_ca.set_digits(2)
+        ca_box.pack_start(scale_ca, True, True, 0)
+        box_tune_a.pack_start(ca_box, False, False, 0)
+
+        tab_aadh.pack_start(box_tune_a, False, False, 0)
+
         tab_aadh.pack_start(Gtk.Label(label="ℹ️ Calibrated for 65 × 95 mm Pouch (3.5mm Seal)", xalign=0), False, False, 0)
 
         self.btn_gen_aadh = Gtk.Button(label="⚡ Extract & Format Aadhaar Card")
@@ -367,15 +388,17 @@ class UwaisCafeStudio(Gtk.Window):
             self.lbl_status.set_text("❌ Please select an Aadhaar PDF first!")
             return
         pw = self.entry_pw.get_text()
+        ba = self.adj_ba.get_value()
+        ca = self.adj_ca.get_value()
         self.lbl_status.set_text("⏳ Extracting 65 × 95 mm Pouch Aadhaar Card...")
 
-        threading.Thread(target=self._process_aadh_thread, args=(pw,)).start()
+        threading.Thread(target=self._process_aadh_thread, args=(pw, ba, ca)).start()
 
-    def _process_aadh_thread(self, pw):
+    def _process_aadh_thread(self, pw, ba, ca):
         out_png = "/tmp/craft_gui_aadhaar.png"
         out_pdf = "/tmp/craft_gui_aadhaar.pdf"
         try:
-            res = process_aadhaar_pdf(self.aadhaar_file, out_png, out_pdf, password=pw)
+            res = process_aadhaar_pdf(self.aadhaar_file, out_png, out_pdf, password=pw, brightness=ba, contrast=ca)
             if res.get("status") == "error":
                 GLib.idle_add(self.lbl_status.set_text, f"❌ {res.get('message')}")
                 return

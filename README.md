@@ -1,66 +1,77 @@
-# ⚡ Craft Studio
+# ⚡ UWAIS INternet CAfe Studio
+### Professional Passport Photos & 65×95mm Pouch ID Print Suite
+**build by UWAIS GHosi**
 
-**Craft Studio** is an automated Passport Photo Sheet & Aadhaar ID Card generation studio tailored for A4 printing on **Brother DCP-T710W** (USB / Wi-Fi) and PhotoCraft integration.
-
----
-
-## 🌟 Key Features
-
-1. **📷 Passport Photos Automation:**
-   * Select quantities: **6, 8, 10, 12, or 30 (Full A4)** photos.
-   * **Space-Saving Layout:** Automatically aligns 6/8/10 photos to the top of the A4 page so the rest of the sheet remains clean and reusable.
-   * **Ultra-Faint Cutting Guides:** Subtle 1px dotted/faint guide borders that consume negligible ink.
-   * Generates exact **595 × 842 pt (A4)** print-ready PDFs.
-
-2. **🪪 Aadhaar Card to PVC/ID Card Converter:**
-   * Automatically decrypts password-protected e-Aadhaar PDFs (`qpdf`).
-   * Extracts Front and Back ID sections at 300 DPI.
-   * Prepares standard 8.6cm × 5.4cm side-by-side ID card layout on A4.
-
-3. **🖨️ Direct Brother Printer Integration:**
-   * **Glossy Mode:** Photo paper, vibrant color, high resolution (`BrotherGlossyR`, `Color`, `Normal`).
-   * **Fast Draft Mode:** Plain paper, black & white, ink saver (`Plain`, `Mono`, `PlainFast`).
-   * One-click direct printing via CUPS to `Brother-DCP-T710W-USB` or `Brother-DCP-T710W-WiFi`.
-
-4. **🖥️ Dual Interfaces:**
-   * **Web GUI:** Beautiful browser interface (drag-and-drop, live preview, print controls).
-   * **CLI:** Lightning-fast terminal commands.
+[![Linux Compatible](https://img.shields.io/badge/OS-Linux%20%7C%20Windows-blue.svg)](https://github.com/mohduwaisghosi786-stack/craft-studio)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-Freeware-orange.svg)](#)
 
 ---
 
-## 🚀 Quick Usage
+## 🌟 Key Highlights
 
-### 1. Launch Web GUI
+1. **📷 6 Passport Photos (Exact 1 Single Row):**
+   - **True 1:1 Scale:** 3.5 cm × 4.5 cm proportion with 1.5 mm cutting gap.
+   - **Space Saving:** Perfectly placed in one single row at the top (1.0 cm top margin, 0.5 cm side margins) leaving the rest of the A4 page completely clean.
+   - **Faint Dashed Cutting Guides:** Ultra low-ink guide lines above and below photos for scissors.
+   - **Live Cropper & Tuning:** Interactive 3.5:4.5 crop tool, brightness, contrast, and saturation controls.
+
+2. **🪪 Aadhaar Card (Calibrated for 125 Micron 65×95mm Lamination Pouch):**
+   - **Guaranteed Waterproof Seal:** Scaled to **58 mm × 88 mm** folded card (leaving solid 3.5 mm plastic thermal weld all around).
+   - **No Scissors Mark:** Automatically trimmed below the UIDAI scissor icon, preserving the Ashoka emblem and Bharat Sarkar header.
+   - **Center Divider:** 2px solid folding guideline with zero gap between front and back.
+   - **Fine-Tuning:** Brightness and contrast controls to adjust dim/dark Aadhaar photos before printing.
+
+3. **🖨️ Universal 100% True Scale Printing:**
+   - Eliminates CUPS driver margin shrinkage by generating exact 300 DPI borderless A4 (`BrA4_B`) raster PDF.
+   - True Color mode enforcement (`print-color-mode=color` & `BRMonoColor=Color`).
+   - Supports Brother DCP-T710W, Epson L-series, Canon Pixma, and HP Ink Tank printers.
+
+---
+
+## 🚀 1-Line Universal Linux Installation (Any Distro)
+
+Run this single command in your terminal on **Ubuntu, Debian, Arch Linux, Linux Mint, Fedora, Pop!_OS**:
+
 ```bash
-python3 /home/fahad/craft-studio/app.py
+curl -fsSL https://raw.githubusercontent.com/mohduwaisghosi786-stack/craft-studio/main/install.sh | bash
 ```
-Open [http://localhost:8090](http://localhost:8090) in your browser.
 
-### 2. Use via Command Line (CLI)
+This script automatically:
+* Installs system dependencies (`python-pillow`, `poppler`, `qpdf`, `cups`, `gtk3`).
+* Sets up the terminal command `uwais-cafe`.
+* Creates a desktop application shortcut in your app menu.
+* Launches the web GUI service on `http://localhost:8091`.
 
-#### Create 6 Passport Photos (Space-Saver Mode):
+---
+
+## 🖥️ How to Run
+
+### Option 1: Native Desktop GUI App
+Run from terminal or application launcher:
 ```bash
-craft-studio passport "/path/to/photo.jpg" -q 6 -o output.png --pdf output.pdf
+uwais-cafe
 ```
+Features a split-pane layout with controls on the left and full-height live HD preview on the right.
 
-#### Create & Directly Print to Brother Printer (Glossy Color):
-```bash
-craft-studio passport "/path/to/photo.jpg" -q 6 --print --glossy --color
+### Option 2: Web Browser Interface
+Open in any browser:
 ```
-
-#### Create & Print Draft (Plain Paper B&W):
-```bash
-craft-studio passport "/path/to/photo.jpg" -q 6 --print
-```
-
-#### Extract & Format Aadhaar Card:
-```bash
-craft-studio aadhaar "/path/to/aadhaar.pdf" -p "MOHD1998" -o aadhaar_id.png --pdf aadhaar_id.pdf
+http://localhost:8091
 ```
 
 ---
 
-## 📂 Project Structure
-* `engine.py`: Image composition, cropping, borders, CUPS PDF filters.
-* `app.py`: Embedded web server & UI (Zero external dependencies).
-* `cli.py`: Terminal interface (`craft-studio`).
+## 🪟 Windows (.EXE / .MSI) Installation
+* Windows standalone package can be compiled using PyInstaller:
+```bash
+pyinstaller --noconfirm --onedir --windowed --add-data "templates:templates" app.py
+```
+* See the [Universal Studio Roadmap](https://github.com/mohduwaisghosi786-stack/craft-studio/blob/main/universal_studio_roadmap.md) for details on upcoming Ayushman Bharat (PMJAY) and e-Shram Card integrations.
+
+---
+
+## 👨‍💻 Author & Credits
+- **Software:** UWAIS INternet CAfe Studio
+- **Creator / Maintainer:** UWAIS GHosi
+- **Repository:** [mohduwaisghosi786-stack/craft-studio](https://github.com/mohduwaisghosi786-stack/craft-studio)

@@ -233,7 +233,9 @@ def process_aadhaar_pdf(
     input_pdf_path: str,
     output_png: str,
     output_pdf: str,
-    password: str = ""
+    password: str = "",
+    brightness: float = 1.0,
+    contrast: float = 1.0
 ) -> dict:
     """
     Unlock Aadhaar PDF, render at 300 DPI, and extract Front & Back ID Card.
@@ -278,6 +280,14 @@ def process_aadhaar_pdf(
     card_h = int(58 * PX_PER_MM)  # 685 px
     front_card = front_crop.resize((card_w, card_h), Image.Resampling.LANCZOS)
     back_card = back_crop.resize((card_w, card_h), Image.Resampling.LANCZOS)
+
+    # Apply manual brightness / contrast tuning if requested
+    if brightness != 1.0:
+        front_card = ImageEnhance.Brightness(front_card).enhance(brightness)
+        back_card = ImageEnhance.Brightness(back_card).enhance(brightness)
+    if contrast != 1.0:
+        front_card = ImageEnhance.Contrast(front_card).enhance(contrast)
+        back_card = ImageEnhance.Contrast(back_card).enhance(contrast)
 
     # Create A4 sheet: 2480 x 3508 px
     canvas = Image.new("RGB", (A4_WIDTH_PX, A4_HEIGHT_PX), (255, 255, 255))

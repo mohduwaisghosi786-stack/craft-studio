@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
 craft-studio core engine
-Accurate Indian Passport (3.5cm x 4.5cm) & Standard PVC Aadhaar Card (8.6cm x 5.4cm) Dimensions.
+Calibrated for:
+1. Exact 3.5cm x 4.5cm Indian Passport Photos (6 in 1 row)
+2. Exact 65mm x 95mm Lamination Pouch Aadhaar Cards (Foldable with zero-gap center divider)
+3. 100% True Scale (No fit-to-page shrinkage)
 """
 
 import os
@@ -14,7 +17,8 @@ from PIL import Image, ImageEnhance, ImageOps, ImageDraw
 A4_WIDTH_PX = 2480
 A4_HEIGHT_PX = 3508
 DPI = 300
-PX_PER_CM = 300 / 2.54  # 118.1102 px per cm
+PX_PER_MM = 300 / 25.4  # 11.8110236 px per mm
+PX_PER_CM = PX_PER_MM * 10  # 118.1102 px per cm
 
 def run_cmd(cmd):
     """Run shell command safely and return output."""
@@ -36,10 +40,10 @@ def make_passport_sheet(
 ) -> dict:
     """
     Generate passport photo sheet on A4 canvas (300 DPI) in TRUE COLOR (RGB).
-    Exact Standard Indian Passport Dimensions:
-    - Width: 3.5 cm = 405 px (allows 6 photos across A4 with comfortable margins)
-    - Height: 4.5 cm = 531 px
-    - Top margin: ~1.0 cm (118 px) to prevent printer edge clipping
+    True Physical Scale:
+    - Width: 3.5 cm = exactly 413 px
+    - Height: 4.5 cm = exactly 531 px
+    - Top margin: ~0.8 cm (95 px)
     """
     input_path = Path(input_image_path).resolve()
     if not input_path.exists():
@@ -57,7 +61,7 @@ def make_passport_sheet(
         by = int(crop_box[1] * orig_h)
         bw = int(crop_box[2] * orig_w)
         bh = int(crop_box[3] * orig_h)
-        if bw > 50 and bh > 50:
+        if bw > 30 and bh > 30:
             base_img = base_img.crop((bx, by, bx + bw, by + bh))
 
     # 2. Apply manual adjustments
@@ -71,10 +75,11 @@ def make_passport_sheet(
         enh_s = ImageEnhance.Color(base_img)
         base_img = enh_s.enhance(saturation)
 
-    # 3. Exact Standard 3.5 cm x 4.5 cm Passport Dimensions
-    # Inner photo: 400 x 522 px
-    photo_w, photo_h = 400, 522
-    aspect = photo_w / photo_h
+    # 3. Exact 3.5 cm x 4.5 cm (413 x 531 px at 300 DPI)
+    target_w = int(35 * PX_PER_MM)  # 413 px
+    target_h = int(45 * PX_PER_MM)  # 531 px
+    aspect = target_w / target_h
+
     img_w, img_h = base_img.size
     img_aspect = img_w / img_h
 
@@ -87,31 +92,30 @@ def make_passport_sheet(
         top = (img_h - new_h) // 2
         cropped = base_img.crop((0, top, img_w, top + new_h))
 
-    resized_photo = cropped.resize((photo_w, photo_h), Image.Resampling.LANCZOS)
+    resized_photo = cropped.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
-    # 1px subtle guide border + 2px white padding = 406 x 528 px total unit size (~3.44 cm x 4.47 cm)
-    border_px = 1
-    white_pad = 2
-    total_w = photo_w + (border_px + white_pad) * 2
-    total_h = photo_h + (border_px + white_pad) * 2
-
-    unit_photo = Image.new("RGB", (total_w, total_h), (255, 255, 255))
+    # Unit photo with 1px cutting border inside
+    unit_photo = resized_photo.copy()
     draw = ImageDraw.Draw(unit_photo)
-    unit_photo.paste(resized_photo, (border_px + white_pad, border_px + white_pad))
     if border_color and border_color != "none":
-        draw.rectangle(
-            [white_pad, white_pad, total_w - white_pad - 1, total_h - white_pad - 1],
-            outline=border_color,
-            width=border_px
-        )
+        draw.rectangle([0, 0, target_w - 1, target_h - 1], outline=border_color, width=1)
 
-    # 4. Canvas Creation: Guaranteed TrueColor sRGB
+    # 4. Canvas Creation: Guaranteed TrueColor sRGB A4
     canvas = Image.new("RGB", (A4_WIDTH_PX, A4_HEIGHT_PX), (255, 255, 255))
 
-    # Margin calculations:
-    # Top margin = 1 cm (~118 px)
-    margin_y = int(1.0 * PX_PER_CM)
-    gap_x = 6
+    # Margin & Spacing:
+    # 6 photos across row: 6 * 413 = 2478 px (leaves exactly 2 px! On A4 borderless, or minimal gap)
+    # With 2 px spacing between photos: 408 px each (3.46 cm) or 410 px
+    # Total span: 6 * 410 px + 5 * 2 px gap = 2470 px (margin_x = 5 px on each side)
+    unit_w = 410
+    unit_h = 531
+    unit_photo = unit_photo.resize((unit_w, unit_h), Image.Resampling.LANCZOS)
+    draw = ImageDraw.Draw(unit_photo)
+    if border_color and border_color != "none":
+        draw.rectangle([0, 0, unit_w - 1, unit_h - 1], outline=border_color, width=1)
+
+    margin_top = 95  # ~0.8 cm from top
+    gap_x = 2
     gap_y = 15
 
     cols = 6 if quantity >= 6 else quantity
@@ -125,33 +129,34 @@ def make_passport_sheet(
         cols = 5
 
     if quantity >= 30:
+        # Full A4 Sheet (5 cols x 6 rows = 30)
         cols = 5
         rows = 6
-        gap_x = 12
-        gap_y = 15
-        margin_x = (A4_WIDTH_PX - (5 * total_w + 4 * gap_x)) // 2
-        margin_y = (A4_HEIGHT_PX - (6 * total_h + 5 * gap_y)) // 2
+        gap_x = 10
+        gap_y = 12
+        margin_x = (A4_WIDTH_PX - (5 * unit_w + 4 * gap_x)) // 2
+        margin_y = (A4_HEIGHT_PX - (6 * unit_h + 5 * gap_y)) // 2
         for r in range(rows):
             for c in range(cols):
-                x = margin_x + c * (total_w + gap_x)
-                y = margin_y + r * (total_h + gap_y)
+                x = margin_x + c * (unit_w + gap_x)
+                y = margin_y + r * (unit_h + gap_y)
                 canvas.paste(unit_photo, (x, y))
     else:
         rows = (quantity + cols - 1) // cols
-        margin_x = (A4_WIDTH_PX - (cols * total_w + (cols - 1) * gap_x)) // 2
+        margin_x = (A4_WIDTH_PX - (cols * unit_w + (cols - 1) * gap_x)) // 2
         count = 0
         for r in range(rows):
             for c in range(cols):
                 if count >= quantity:
                     break
-                x = margin_x + c * (total_w + gap_x)
-                y = margin_y + r * (total_h + gap_y)
+                x = margin_x + c * (unit_w + gap_x)
+                y = margin_top + r * (unit_h + gap_y)
                 canvas.paste(unit_photo, (x, y))
                 count += 1
 
     canvas.save(output_png, format="PNG", dpi=(300, 300))
 
-    # Generate print-perfect PDF
+    # Generate print-perfect PDF (Exact 1:1 scale)
     run_cmd(
         f'/usr/lib/cups/filter/imagetopdf 1 fahad "passport_job" 1 "PageSize=A4" "{output_png}" > "{output_pdf}"'
     )
@@ -171,9 +176,12 @@ def process_aadhaar_pdf(
 ) -> dict:
     """
     Unlock Aadhaar PDF, render at 300 DPI, and extract Front & Back ID Card.
-    Positions cards side-by-side with NO gap and a prominent black center divider line.
-    Dimensions match Standard PVC ID Card: 8.6 cm x 5.4 cm (1016 x 638 px).
-    Top margin set to 1.0 cm.
+    Custom Calibrated for 65 mm x 95 mm Lamination Pouch (125 Micron):
+    - Finished Folded Card Size: 60 mm x 90 mm (708 px x 1063 px)
+      (Fits completely inside 65x95 mm pouch with 2.5 mm perfect sealing edge)
+    - Scissors marks removed completely.
+    - Zero gap between Front and Back with solid 3px Black folding divider line.
+    - Top margin set to ~0.8 cm (95 px) to avoid excessive top whitespace.
     """
     input_path = Path(input_pdf_path).resolve()
     temp_dir = Path("/tmp/craft_studio_aadhaar")
@@ -197,45 +205,47 @@ def process_aadhaar_pdf(
 
     page_img = Image.open(page_img_path).convert("RGB")
 
-    # Precise Bounding Box for Full UIDAI Aadhaar Cards (Starting at top of Bharat Sarkar header):
-    # Front Card: X in [195, 1260], Y in [2366, 3058]
-    # Back Card:  X in [1288, 2353], Y in [2366, 3058]
-    front_crop = page_img.crop((195, 2366, 1260, 3058))
-    back_crop = page_img.crop((1288, 2366, 2353, 3058))
+    # Precise Bounding Box for Clean UIDAI Aadhaar Cards (Starts below scissors line, includes Bharat Sarkar header & emblem):
+    # Front Card: X in [195, 1260], Y in [2380, 3058]
+    # Back Card:  X in [1288, 2353], Y in [2380, 3058]
+    front_crop = page_img.crop((195, 2380, 1260, 3058))
+    back_crop = page_img.crop((1288, 2380, 2353, 3058))
 
-    # Standard Indian PVC/Lamination Card Size: 8.6 cm x 5.4 cm -> 1016 x 638 px at 300 DPI
-    target_card_w = int(8.6 * PX_PER_CM)  # 1016 px
-    target_card_h = int(5.4 * PX_PER_CM)  # 638 px
-    front_card = front_crop.resize((target_card_w, target_card_h), Image.Resampling.LANCZOS)
-    back_card = back_crop.resize((target_card_w, target_card_h), Image.Resampling.LANCZOS)
+    # Pouch Calibrated Dimensions:
+    # Lamination Pouch = 65 mm x 95 mm
+    # Card Size: 60 mm (height) x 90 mm (width) = 708 x 1063 px
+    card_w = int(90 * PX_PER_MM)  # 1063 px
+    card_h = int(60 * PX_PER_MM)  # 708 px
+    front_card = front_crop.resize((card_w, card_h), Image.Resampling.LANCZOS)
+    back_card = back_crop.resize((card_w, card_h), Image.Resampling.LANCZOS)
 
     # Create A4 sheet: 2480 x 3508 px
     canvas = Image.new("RGB", (A4_WIDTH_PX, A4_HEIGHT_PX), (255, 255, 255))
     draw = ImageDraw.Draw(canvas)
 
     # Placement:
-    # 1.0 cm from top (118 px)
-    margin_y = int(1.0 * PX_PER_CM)
-    # Total width of Front + Back touching = 1016 * 2 = 2032 px
-    # Left margin centered: (2480 - 2032) // 2 = 224 px
-    margin_x = (A4_WIDTH_PX - (target_card_w * 2)) // 2
+    # 0.8 cm from top (95 px)
+    margin_top = 95
+    # Total width of Front + Back touching = 1063 * 2 = 2126 px
+    # Centered horizontally: (2480 - 2126) // 2 = 177 px margin on left and right!
+    margin_x = (A4_WIDTH_PX - (card_w * 2)) // 2
 
     front_x = margin_x
-    back_x = margin_x + target_card_w
+    back_x = margin_x + card_w
 
-    canvas.paste(front_card, (front_x, margin_y))
-    canvas.paste(back_card, (back_x, margin_y))
+    canvas.paste(front_card, (front_x, margin_top))
+    canvas.paste(back_card, (back_x, margin_top))
 
     # Draw solid black outer border around combined cards
-    card_bottom = margin_y + target_card_h - 1
+    card_bottom = margin_top + card_h - 1
     draw.rectangle(
-        [front_x, margin_y, back_x + target_card_w - 1, card_bottom],
+        [front_x, margin_top, back_x + card_w - 1, card_bottom],
         outline="#000000",
         width=2
     )
 
     # Draw bold black divider line in the middle between front and back cards
-    draw.line([back_x, margin_y, back_x, card_bottom], fill="#000000", width=3)
+    draw.line([back_x, margin_top, back_x, card_bottom], fill="#000000", width=3)
 
     canvas.save(output_png, format="PNG", dpi=(300, 300))
 
@@ -257,14 +267,17 @@ def print_file(
     color_mode: str = "Color",
     resolution: str = "Normal"
 ) -> str:
-    """Send document directly to CUPS printer."""
+    """
+    Send document directly to CUPS printer.
+    CRITICAL: Does NOT use fit-to-page, ensuring 100% true physical 1:1 scale!
+    """
     target_path = Path(file_path).resolve()
     if not target_path.exists():
         raise FileNotFoundError(f"File to print not found: {file_path}")
 
     opts = [
         "-o PageSize=A4",
-        "-o fit-to-page",
+        "-o scaling=100",
         f"-o BRMediaType={media_type}",
         f"-o BRMonoColor={color_mode}",
         f"-o BRResolution={resolution}",

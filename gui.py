@@ -130,9 +130,9 @@ scale highlight {
 }
 """
 
-class OwaisCafeStudio(Gtk.Window):
+class UwaisCafeStudio(Gtk.Window):
     def __init__(self):
-        super().__init__(title="Owais Internet Cafe - Passport & Aadhaar Studio")
+        super().__init__(title="UWAIS INternet CAfe - Passport & Aadhaar Studio")
         self.set_default_size(1050, 780)
         self.set_border_width(18)
         self.set_position(Gtk.WindowPosition.CENTER)
@@ -156,11 +156,11 @@ class OwaisCafeStudio(Gtk.Window):
         title_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         
         lbl_title = Gtk.Label()
-        lbl_title.set_markup("<span class='brand-title'>⚡ Owais Internet Cafe Studio</span>")
+        lbl_title.set_markup("<span class='brand-title'>⚡ UWAIS INternet CAfe</span>")
         lbl_title.set_xalign(0)
         
         lbl_credit = Gtk.Label()
-        lbl_credit.set_markup("<span class='brand-credit'>Crafted by Mohd Uwais Ghosi</span> • <i>Passport Photos & Aadhaar Print Suite</i>")
+        lbl_credit.set_markup("<span class='brand-credit'>build by UWAIS GHosi</span> • <i>Passport Photos & Aadhaar Print Suite</i>")
         lbl_credit.set_xalign(0)
 
         title_vbox.pack_start(lbl_title, False, False, 0)
@@ -413,7 +413,7 @@ class OwaisCafeStudio(Gtk.Window):
             GLib.idle_add(self.lbl_status.set_text, f"❌ Print Error: {str(e)}")
 
 def main():
-    app = OwaisCafeStudio()
+    app = UwaisCafeStudio()
     app.connect("destroy", Gtk.main_quit)
     app.show_all()
     Gtk.main()

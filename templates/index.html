@@ -30,7 +30,7 @@
             overflow-x: hidden;
         }
         .container { 
-            max-width: 1020px; 
+            max-width: 1380px; 
             margin: 0 auto; 
             animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
@@ -342,15 +342,29 @@
 
                 <div class="adjust-panel" id="aadhaar-adjust" style="display:block; margin-top: 15px;">
                     <div class="adjust-title">
-                        <span>✨ Aadhaar Card Tuning</span>
+                        <span>👤 Person Photo Tuning (Brighten Dark Face)</span>
                     </div>
                     <div class="slider-group">
-                        <label>Brightness:</label>
+                        <label>Face Brightness:</label>
+                        <input type="range" id="aadh-photo-bright" min="0.6" max="1.8" step="0.05" value="1.0" oninput="document.getElementById('aadh-photo-bright-val').innerText = this.value">
+                        <span class="slider-val" id="aadh-photo-bright-val">1.0</span>
+                    </div>
+                    <div class="slider-group">
+                        <label>Face Contrast:</label>
+                        <input type="range" id="aadh-photo-contrast" min="0.6" max="1.6" step="0.05" value="1.0" oninput="document.getElementById('aadh-photo-contrast-val').innerText = this.value">
+                        <span class="slider-val" id="aadh-photo-contrast-val">1.0</span>
+                    </div>
+
+                    <div class="adjust-title" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">
+                        <span>🪪 Overall Card Tuning (Text & Background)</span>
+                    </div>
+                    <div class="slider-group">
+                        <label>Card Brightness:</label>
                         <input type="range" id="aadh-bright" min="0.7" max="1.4" step="0.05" value="1.0" oninput="document.getElementById('aadh-bright-val').innerText = this.value">
                         <span class="slider-val" id="aadh-bright-val">1.0</span>
                     </div>
                     <div class="slider-group">
-                        <label>Contrast:</label>
+                        <label>Card Contrast:</label>
                         <input type="range" id="aadh-contrast" min="0.7" max="1.4" step="0.05" value="1.0" oninput="document.getElementById('aadh-contrast-val').innerText = this.value">
                         <span class="slider-val" id="aadh-contrast-val">1.0</span>
                     </div>
@@ -540,6 +554,8 @@
             formData.append('password', document.getElementById('aadhaar-pw').value);
             formData.append('brightness', document.getElementById('aadh-bright').value);
             formData.append('contrast', document.getElementById('aadh-contrast').value);
+            formData.append('photo_brightness', document.getElementById('aadh-photo-bright').value);
+            formData.append('photo_contrast', document.getElementById('aadh-photo-contrast').value);
 
             const res = await fetch('/api/aadhaar', { method: 'POST', body: formData });
             const data = await res.json();

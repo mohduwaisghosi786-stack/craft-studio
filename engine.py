@@ -235,7 +235,9 @@ def process_aadhaar_pdf(
     output_pdf: str,
     password: str = "",
     brightness: float = 1.0,
-    contrast: float = 1.0
+    contrast: float = 1.0,
+    photo_brightness: float = 1.0,
+    photo_contrast: float = 1.0
 ) -> dict:
     """
     Unlock Aadhaar PDF, render at 300 DPI, and extract Front & Back ID Card.
@@ -274,6 +276,17 @@ def process_aadhaar_pdf(
     front_crop = page_img.crop((195, 2380, 1260, 3058))
     back_crop = page_img.crop((1288, 2380, 2353, 3058))
 
+    # Isolate and enhance person's portrait photo specifically on the front card
+    # Portrait coordinates in front_crop: X [88, 245], Y [140, 345]
+    if photo_brightness != 1.0 or photo_contrast != 1.0:
+        px1, py1, px2, py2 = 86, 138, 248, 348
+        person_photo = front_crop.crop((px1, py1, px2, py2))
+        if photo_brightness != 1.0:
+            person_photo = ImageEnhance.Brightness(person_photo).enhance(photo_brightness)
+        if photo_contrast != 1.0:
+            person_photo = ImageEnhance.Contrast(person_photo).enhance(photo_contrast)
+        front_crop.paste(person_photo, (px1, py1))
+
     # Pouch Calibrated Dimensions:
     # 65 mm x 95 mm Pouch -> Card: 58 mm (height) x 88 mm (width) = 685 x 1039 px
     card_w = int(88 * PX_PER_MM)  # 1039 px
@@ -281,7 +294,7 @@ def process_aadhaar_pdf(
     front_card = front_crop.resize((card_w, card_h), Image.Resampling.LANCZOS)
     back_card = back_crop.resize((card_w, card_h), Image.Resampling.LANCZOS)
 
-    # Apply manual brightness / contrast tuning if requested
+    # Apply manual card brightness / contrast tuning if requested
     if brightness != 1.0:
         front_card = ImageEnhance.Brightness(front_card).enhance(brightness)
         back_card = ImageEnhance.Brightness(back_card).enhance(brightness)

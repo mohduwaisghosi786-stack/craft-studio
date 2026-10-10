@@ -1,4 +1,4 @@
-name: Build Windows & Linux Release
+name: Build Windows (x64 & x86) & Release
 
 on:
   push:
@@ -10,37 +10,74 @@ permissions:
   contents: write
 
 jobs:
-  build-windows:
+  build-windows-x64:
     runs-on: windows-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 64-bit
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          architecture: 'x64'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller pillow pypdf reportlab
 
-      - name: Build Standalone Windows Single-File EXE
+      - name: Build Standalone Windows 64-bit EXEs
         run: |
-          pyinstaller --noconfirm --onefile --windowed --add-data "templates;templates" --name "UWAIS-Internet-Cafe-Studio-Portable" app.py
-          pyinstaller --noconfirm --onedir --windowed --add-data "templates;templates" --name "UWAIS-Internet-Cafe-Studio" app.py
+          pyinstaller --noconfirm --onefile --windowed --add-data "templates;templates" --name "UWAIS-Internet-Cafe-Studio-x64-Portable" app.py
+          pyinstaller --noconfirm --onedir --windowed --add-data "templates;templates" --name "UWAIS-Internet-Cafe-Studio-x64" app.py
 
-      - name: Compress Windows Directory Setup
+      - name: Package 64-bit ZIP
         run: |
-          powershell Compress-Archive -Path dist/UWAIS-Internet-Cafe-Studio -DestinationPath dist/UWAIS-Internet-Cafe-Studio-Windows.zip
+          powershell Compress-Archive -Path dist/UWAIS-Internet-Cafe-Studio-x64 -DestinationPath dist/UWAIS-Internet-Cafe-Studio-x64-Setup.zip
 
-      - name: Upload Windows Assets to GitHub Release
+      - name: Upload 64-bit Release Assets
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            dist/UWAIS-Internet-Cafe-Studio-Portable.exe
-            dist/UWAIS-Internet-Cafe-Studio-Windows.zip
+            dist/UWAIS-Internet-Cafe-Studio-x64-Portable.exe
+            dist/UWAIS-Internet-Cafe-Studio-x64-Setup.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows-x86:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 32-bit (x86)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: 'x86'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller pillow pypdf reportlab
+
+      - name: Build Standalone Windows 32-bit (x86) EXEs
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --add-data "templates;templates" --name "UWAIS-Internet-Cafe-Studio-x86-Portable" app.py
+          pyinstaller --noconfirm --onedir --windowed --add-data "templates;templates" --name "UWAIS-Internet-Cafe-Studio-x86" app.py
+
+      - name: Package 32-bit ZIP
+        run: |
+          powershell Compress-Archive -Path dist/UWAIS-Internet-Cafe-Studio-x86 -DestinationPath dist/UWAIS-Internet-Cafe-Studio-x86-Setup.zip
+
+      - name: Upload 32-bit Release Assets
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/UWAIS-Internet-Cafe-Studio-x86-Portable.exe
+            dist/UWAIS-Internet-Cafe-Studio-x86-Setup.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

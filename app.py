@@ -126,9 +126,11 @@ class CraftStudioHandler(http.server.SimpleHTTPRequestHandler):
 
             b = float(fields.get('brightness', 1.0))
             c = float(fields.get('contrast', 1.0))
+            pb = float(fields.get('photo_brightness', 1.0))
+            pc = float(fields.get('photo_contrast', 1.0))
 
             try:
-                res = process_aadhaar_pdf(str(input_path), str(out_png), str(out_pdf), password=pw, brightness=b, contrast=c)
+                res = process_aadhaar_pdf(str(input_path), str(out_png), str(out_pdf), password=pw, brightness=b, contrast=c, photo_brightness=pb, photo_contrast=pc)
                 if res.get("status") == "success":
                     res["png_url"] = "/outputs/aadhaar_id_sheet.png"
                     res["pdf_url"] = "/outputs/aadhaar_id_sheet.pdf"

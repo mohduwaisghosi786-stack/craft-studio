@@ -20,11 +20,10 @@ CSS_STYLE = b"""
 /* Global Reset & Futuristic Typography */
 * {
     font-family: 'Outfit', 'Segoe UI', 'Inter', 'Ubuntu', sans-serif;
-    -GtkWidget-focus-line-width: 0;
 }
 
 window {
-    background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #090d16 55%, #030712 100%);
+    background: #090d16;
     color: #f8fafc;
 }
 
@@ -32,7 +31,6 @@ window {
 .brand-title {
     font-size: 24px;
     font-weight: 900;
-    letter-spacing: -0.5px;
     color: #38bdf8;
 }
 
@@ -65,7 +63,7 @@ notebook header {
 }
 
 notebook tab {
-    background: rgba(15, 23, 42, 0.65);
+    background: #0f172a;
     color: #94a3b8;
     padding: 10px 24px;
     font-size: 14px;
@@ -74,36 +72,31 @@ notebook tab {
     border: 1px solid #1e293b;
     border-bottom: none;
     margin-right: 6px;
-    transition: all 200ms ease-in-out;
 }
 
 notebook tab:hover {
-    background: rgba(30, 41, 59, 0.8);
+    background: #1e293b;
     color: #38bdf8;
 }
 
 notebook tab:checked {
-    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    background: #2563eb;
     color: #ffffff;
     border-color: #3b82f6;
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.35);
 }
 
 /* Card Panels */
 .card-panel {
-    background: rgba(15, 23, 42, 0.7);
-    border: 1px solid rgba(30, 41, 59, 0.8);
+    background: #0f172a;
+    border: 1px solid #1e293b;
     border-radius: 16px;
     padding: 18px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .section-label {
     font-size: 13px;
     font-weight: 700;
     color: #93c5fd;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 /* Inputs & Combos */
@@ -238,11 +231,11 @@ class UwaisCafeStudio(Gtk.Window):
         
         title_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
         lbl_title = Gtk.Label()
-        lbl_title.set_markup("<span class='brand-title'>⚡ UWAIS INternet CAfe</span>")
+        lbl_title.set_markup("<span weight='heavy' size='xx-large' foreground='#38bdf8'>⚡ UWAIS INternet CAfe</span>")
         lbl_title.set_xalign(0)
         
         lbl_credit = Gtk.Label()
-        lbl_credit.set_markup("<span class='brand-credit'>build by UWAIS GHosi</span> • <i>Passport Photos & Aadhaar Print Suite</i>")
+        lbl_credit.set_markup("<span weight='bold' size='medium' foreground='#c084fc'>build by UWAIS GHosi</span> • <span style='italic' foreground='#94a3b8'>Passport Photos &amp; Aadhaar Print Suite</span>")
         lbl_credit.set_xalign(0)
 
         title_vbox.pack_start(lbl_title, False, False, 0)
@@ -252,9 +245,9 @@ class UwaisCafeStudio(Gtk.Window):
         # Right header badges
         badge_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         lbl_b1 = Gtk.Label()
-        lbl_b1.set_markup("<span class='brand-badge'>PRO STUDIO</span>")
+        lbl_b1.set_markup("<span weight='bold' foreground='#38bdf8' background='#0f172a'> [PRO STUDIO] </span>")
         lbl_b2 = Gtk.Label()
-        lbl_b2.set_markup("<span class='brand-badge'>100% TRUE SCALE</span>")
+        lbl_b2.set_markup("<span weight='bold' foreground='#34d399' background='#0f172a'> [100% TRUE SCALE] </span>")
         badge_box.pack_start(lbl_b1, False, False, 0)
         badge_box.pack_start(lbl_b2, False, False, 0)
         header_box.pack_start(badge_box, False, False, 0)
@@ -263,16 +256,17 @@ class UwaisCafeStudio(Gtk.Window):
 
         # Main Dynamic Resizing Paned (Left Controls | Right HD Live Preview)
         self.main_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
+        self.main_paned.set_position(440)
         root_vbox.pack_start(self.main_paned, True, True, 0)
 
         # === LEFT PANEL: CONTROLS IN SCROLLED WINDOW ===
         left_scroll = Gtk.ScrolledWindow()
         left_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        left_scroll.set_size_request(440, -1)
+        left_scroll.set_size_request(420, -1)
         self.main_paned.pack1(left_scroll, resize=False, shrink=False)
 
         left_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
-        left_content.set_margin_right(10)
+        left_content.set_margin_end(12)
         left_scroll.add(left_content)
 
         # Notebook Tabs
@@ -399,7 +393,7 @@ class UwaisCafeStudio(Gtk.Window):
         print_box.get_style_context().add_class('card-panel')
 
         lbl_pr_title = Gtk.Label()
-        lbl_pr_title.set_markup("<span class='section-label' color='#34d399'>🖨️ Universal Printer Engine</span>")
+        lbl_pr_title.set_markup("<span weight='bold' size='large' foreground='#34d399'>🖨️ Universal Printer Engine</span>")
         lbl_pr_title.set_xalign(0)
         print_box.pack_start(lbl_pr_title, False, False, 0)
 
@@ -446,7 +440,7 @@ class UwaisCafeStudio(Gtk.Window):
 
         # === RIGHT PANEL: FLUID LIVE PREVIEW ===
         right_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        right_panel.set_margin_left(10)
+        right_panel.set_margin_start(10)
         self.main_paned.pack2(right_panel, resize=True, shrink=True)
 
         prev_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)

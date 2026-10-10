@@ -328,18 +328,25 @@ def print_file(
     """
     Send document directly to CUPS printer.
     Uses BrA4_B (Borderless A4) to prevent Brother driver from shrinking margins!
+    Guarantees True Color mode by enforcing both CUPS standard and Brother-specific color flags.
     """
     target_path = Path(file_path).resolve()
     if not target_path.exists():
         raise FileNotFoundError(f"File to print not found: {file_path}")
 
+    # Map color_mode to standard cups and brother options
+    cups_color = "color" if color_mode.lower() == "color" else "monochrome"
+    br_color = "Color" if color_mode.lower() == "color" else "Mono"
+
     opts = [
         "-o PageSize=BrA4_B",
         "-o scaling=100",
+        f"-o print-color-mode={cups_color}",
+        f"-o BRMonoColor={br_color}",
         f"-o BRMediaType={media_type}",
-        f"-o BRMonoColor={color_mode}",
         f"-o BRResolution={resolution}",
-        "-o BRJpeg=SpeedPrior"
+        "-o BRJpeg=Recommended",
+        "-o BRColorMatching=Natural"
     ]
     cmd = f'lp -d "{printer_name}" {" ".join(opts)} "{target_path}"'
     out = run_cmd(cmd)

@@ -2,14 +2,15 @@
 """
 craft-studio core engine
 Automates Passport photo sheet generation & Aadhaar ID card extraction
-with PhotoCraft CLI & CUPS printer integration.
+with PhotoCraft CLI, Pillow studio-grade enhancement & CUPS printer integration.
+Guarantees True 24-bit sRGB Color output.
 """
 
 import os
 import sys
 import subprocess
-import shutil
 from pathlib import Path
+from PIL import Image, ImageEnhance, ImageOps, ImageDraw
 
 A4_WIDTH_PX = 2480
 A4_HEIGHT_PX = 3508
@@ -22,17 +23,36 @@ def run_cmd(cmd):
         raise RuntimeError(f"Command failed ({res.returncode}): {cmd}\nStderr: {res.stderr}")
     return res.stdout.strip()
 
+def enhance_studio_quality(img: Image.Image) -> Image.Image:
+    """
+    Studio-grade photo enhancement:
+    Auto-contrast, natural skin-tone color saturation, subtle sharpness & balanced brightness.
+    """
+    img = img.convert("RGB")
+    # 1. Auto-contrast with 1% cutoff to remove dull haze
+    img = ImageOps.autocontrast(img, cutoff=1)
+    # 2. Rich Color Saturation for photo print
+    enh_color = ImageEnhance.Color(img)
+    img = enh_color.enhance(1.15)
+    # 3. Studio Sharpness (clarity for eyes, hair, facial features)
+    enh_sharp = ImageEnhance.Sharpness(img)
+    img = enh_sharp.enhance(1.25)
+    # 4. Slight Brightness boost
+    enh_bright = ImageEnhance.Brightness(img)
+    img = enh_bright.enhance(1.02)
+    return img
+
 def make_passport_sheet(
     input_image_path: str,
     output_png: str,
     output_pdf: str,
     quantity: int = 6,
     border_color: str = "#b0b0b0",
-    dotted_cut_lines: bool = True
+    enhance: bool = True
 ) -> dict:
     """
-    Generate passport photo sheet on A4 canvas (300 DPI).
-    Supports 6, 8, 10, 12, 16, 30 (full sheet) photos.
+    Generate passport photo sheet on A4 canvas (300 DPI) in VIVID TRUE COLOR (RGB).
+    Quantities: 6, 8, 10, 12, 16, 30.
     Space saving: prints at top and preserves bottom blank paper.
     """
     input_path = Path(input_image_path).resolve()
@@ -41,36 +61,66 @@ def make_passport_sheet(
 
     temp_dir = Path("/tmp/craft_studio_passport")
     temp_dir.mkdir(parents=True, exist_ok=True)
-    single_photo = temp_dir / "single_photo.png"
 
-    # Enhance image using PhotoCraft CLI engine (Auto-Contrast, Auto-Color, Clean Rendering)
-    photocraft_enhanced = temp_dir / "enhanced_photocraft.png"
+    # 1. PhotoCraft CLI Pre-processing (AutoContrast / AutoColor)
+    photocraft_out = temp_dir / "pc_enhanced.png"
     try:
         run_cmd(
             f'photocraft-cli run "{input_path}" '
             f'--cmd image.autoContrast --cmd image.autoColor '
-            f'--out "{photocraft_enhanced}"'
+            f'--out "{photocraft_out}"'
         )
-        source_img = photocraft_enhanced
-    except Exception as e:
-        # Fallback to direct input if photocraft-cli throws
-        source_img = input_path
+        base_img = Image.open(photocraft_out)
+    except Exception:
+        base_img = Image.open(input_path)
 
-    # Standard Passport size: 3.5cm x 4.5cm -> ~413x531 px at 300 DPI
-    # Border: 1px subtle gray cutting guide, 3px white safety margin
-    crop_w, crop_h = 384, 512
-    cmd_crop = (
-        f'magick "{source_img}" -resize {crop_w}x{crop_h}^ -gravity center -extent {crop_w}x{crop_h} '
-        f'-bordercolor "{border_color}" -border 1 -bordercolor white -border 3 "{single_photo}"'
-    )
-    run_cmd(cmd_crop)
+    # 2. Studio Polish
+    if enhance:
+        base_img = enhance_studio_quality(base_img)
+    else:
+        base_img = base_img.convert("RGB")
 
-    # Base A4 canvas
-    base_canvas = temp_dir / "canvas.png"
-    run_cmd(f'magick -size {A4_WIDTH_PX}x{A4_HEIGHT_PX} xc:white "{base_canvas}"')
+    # 3. Standard Passport Size: 3.5cm x 4.5cm -> 413x531 px at 300 DPI
+    # Inner photo size: 384x512 px + borders = 392x520 px
+    photo_w, photo_h = 384, 512
+    # Smart crop to aspect ratio
+    aspect = photo_w / photo_h
+    img_w, img_h = base_img.size
+    img_aspect = img_w / img_h
 
-    # Layout calculation
-    # Row width allows max 6 photos across: 6 * 392 = 2352 px
+    if img_aspect > aspect:
+        new_w = int(img_h * aspect)
+        left = (img_w - new_w) // 2
+        cropped = base_img.crop((left, 0, left + new_w, img_h))
+    else:
+        new_h = int(img_w / aspect)
+        top = (img_h - new_h) // 2
+        cropped = base_img.crop((0, top, img_w, top + new_h))
+
+    resized_photo = cropped.resize((photo_w, photo_h), Image.Resampling.LANCZOS)
+
+    # Add 1px cutting border + 3px white safety border (total 392x520 px)
+    border_px = 1
+    white_pad = 3
+    total_w = photo_w + (border_px + white_pad) * 2
+    total_h = photo_h + (border_px + white_pad) * 2
+
+    unit_photo = Image.new("RGB", (total_w, total_h), (255, 255, 255))
+    draw = ImageDraw.Draw(unit_photo)
+    # Paste photo inside
+    unit_photo.paste(resized_photo, (border_px + white_pad, border_px + white_pad))
+    # Draw faint border
+    if border_color and border_color != "none":
+        draw.rectangle(
+            [white_pad, white_pad, total_w - white_pad - 1, total_h - white_pad - 1],
+            outline=border_color,
+            width=border_px
+        )
+
+    # 4. Canvas Creation: Guaranteed 24-bit TrueColor RGB
+    canvas = Image.new("RGB", (A4_WIDTH_PX, A4_HEIGHT_PX), (255, 255, 255))
+
+    # Layout Calculations
     cols = 6 if quantity >= 6 else quantity
     if quantity == 8:
         cols = 4
@@ -81,46 +131,41 @@ def make_passport_sheet(
     elif quantity >= 30:
         cols = 5 # 5x6 = 30 full page
 
-    composite_ops = []
-    margin_x = 35
     margin_y = 35
-    photo_w = 392
-    photo_h = 520
     gap_x = 16
     gap_y = 20
 
     if quantity >= 30:
-        # Full A4 (5 cols x 6 rows = 30)
+        # Full A4
         cols = 5
         rows = 6
         gap_x = 24
         gap_y = 24
-        margin_x = (A4_WIDTH_PX - (5 * photo_w + 4 * gap_x)) // 2
-        margin_y = (A4_HEIGHT_PX - (6 * photo_h + 5 * gap_y)) // 2
+        margin_x = (A4_WIDTH_PX - (5 * total_w + 4 * gap_x)) // 2
+        margin_y = (A4_HEIGHT_PX - (6 * total_h + 5 * gap_y)) // 2
         for r in range(rows):
             for c in range(cols):
-                x = margin_x + c * (photo_w + gap_x)
-                y = margin_y + r * (photo_h + gap_y)
-                composite_ops.append(f'"{single_photo}" -geometry +{x}+{y} -composite')
+                x = margin_x + c * (total_w + gap_x)
+                y = margin_y + r * (total_h + gap_y)
+                canvas.paste(unit_photo, (x, y))
     else:
         # Top-aligned space saving layout
         rows = (quantity + cols - 1) // cols
-        margin_x = (A4_WIDTH_PX - (cols * photo_w + (cols - 1) * gap_x)) // 2
+        margin_x = (A4_WIDTH_PX - (cols * total_w + (cols - 1) * gap_x)) // 2
         count = 0
         for r in range(rows):
             for c in range(cols):
                 if count >= quantity:
                     break
-                x = margin_x + c * (photo_w + gap_x)
-                y = margin_y + r * (photo_h + gap_y)
-                composite_ops.append(f'"{single_photo}" -geometry +{x}+{y} -composite')
+                x = margin_x + c * (total_w + gap_x)
+                y = margin_y + r * (total_h + gap_y)
+                canvas.paste(unit_photo, (x, y))
                 count += 1
 
-    # Apply composites
-    comp_cmd = f'magick "{base_canvas}" {" ".join(composite_ops)} -density 300 -units PixelsPerInch "{output_png}"'
-    run_cmd(comp_cmd)
+    # Save PNG in TrueColor sRGB
+    canvas.save(output_png, format="PNG", dpi=(300, 300))
 
-    # Convert to true A4 points PDF (595.28 x 841.89 pt) using CUPS native filter
+    # Convert to standard A4 PDF (595.28 x 841.89 pt) using CUPS native filter
     run_cmd(
         f'/usr/lib/cups/filter/imagetopdf 1 fahad "passport_job" 1 "PageSize=A4" "{output_png}" > "{output_pdf}"'
     )
@@ -139,8 +184,8 @@ def process_aadhaar_pdf(
     password: str = ""
 ) -> dict:
     """
-    Unlock Aadhaar PDF if needed, extract high-res 300 DPI page,
-    and crop into standard Front & Back ID Card (PVC size: 8.6cm x 5.4cm).
+    Unlock Aadhaar PDF, render at 300 DPI in TRUE COLOR (RGB),
+    and accurately extract full Front & Back ID Card (PVC size: 8.6cm x 5.4cm).
     """
     input_path = Path(input_pdf_path).resolve()
     temp_dir = Path("/tmp/craft_studio_aadhaar")
@@ -158,38 +203,45 @@ def process_aadhaar_pdf(
 
     # Render PDF first page at 300 DPI
     run_cmd(f'pdftoppm -png -r 300 -f 1 -l 1 "{unlocked_pdf}" "{temp_dir}/page"')
-    page_img = temp_dir / "page-1.png"
-    if not page_img.exists():
+    page_img_path = temp_dir / "page-1.png"
+    if not page_img_path.exists():
         raise FileNotFoundError("Failed to render Aadhaar PDF page")
 
-    # In standard e-Aadhaar letters (UIDAI):
-    # Dimensions ~ 2480 x 3508 px at 300 DPI
-    # ID card is located at the bottom half of the page:
-    # Front is on the bottom left/middle, Back is on the bottom right/middle.
-    # Front size: ~ 1016 x 640 px (8.6cm x 5.4cm)
-    # Back size: ~ 1016 x 640 px
-    front_card = temp_dir / "aadhaar_front.png"
-    back_card = temp_dir / "aadhaar_back.png"
+    page_img = Image.open(page_img_path).convert("RGB")
+    page_w, page_h = page_img.size
 
-    # Crop Front (Left bottom) and Back (Right bottom)
-    # Coordinates for standard e-Aadhaar layout:
-    # Y is around 2680-3320 px
-    run_cmd(f'magick "{page_img}" -crop 1030x650+175+2680 +repage -bordercolor "#b0b0b0" -border 1 "{front_card}"')
-    run_cmd(f'magick "{page_img}" -crop 1030x650+1275+2680 +repage -bordercolor "#b0b0b0" -border 1 "{back_card}"')
+    # Exact Coordinates for Standard e-Aadhaar UIDAI Layout:
+    # Card is located from Y ~ 2400 to 3080 px (approx 680 px high)
+    # Front card is on the left half: X ~ 120 to 1200 px (width ~ 1080 px)
+    # Back card is on the right half: X ~ 1350 to 2430 px (width ~ 1080 px)
+    front_crop = page_img.crop((120, 2400, 1200, 3080))
+    back_crop = page_img.crop((1350, 2400, 2430, 3080))
 
-    # Create A4 sheet with Front and Back side-by-side with faint cut border
-    base_canvas = temp_dir / "aadhaar_a4.png"
-    run_cmd(f'magick -size {A4_WIDTH_PX}x{A4_HEIGHT_PX} xc:white "{base_canvas}"')
+    # Standard PVC Card size at 300 DPI is approx 1016 x 638 px (8.6cm x 5.4cm)
+    target_card_w, target_card_h = 1016, 638
+    front_card = front_crop.resize((target_card_w, target_card_h), Image.Resampling.LANCZOS)
+    back_card = back_crop.resize((target_card_w, target_card_h), Image.Resampling.LANCZOS)
 
-    # Composite side-by-side at top
-    run_cmd(
-        f'magick "{base_canvas}" '
-        f'"{front_card}" -geometry +160+150 -composite '
-        f'"{back_card}" -geometry +1280+150 -composite '
-        f'-density 300 -units PixelsPerInch "{output_png}"'
-    )
+    # Add 1px subtle gray cutting guide around each card
+    draw_f = ImageDraw.Draw(front_card)
+    draw_f.rectangle([0, 0, target_card_w - 1, target_card_h - 1], outline="#b0b0b0", width=1)
 
-    # Generate print-perfect PDF
+    draw_b = ImageDraw.Draw(back_card)
+    draw_b.rectangle([0, 0, target_card_w - 1, target_card_h - 1], outline="#b0b0b0", width=1)
+
+    # Create TrueColor A4 Canvas
+    canvas = Image.new("RGB", (A4_WIDTH_PX, A4_HEIGHT_PX), (255, 255, 255))
+
+    # Place Front and Back side-by-side at top with neat margins
+    # Left card: x=170, y=140
+    # Right card: x=1290, y=140
+    canvas.paste(front_card, (170, 140))
+    canvas.paste(back_card, (1290, 140))
+
+    # Save output PNG
+    canvas.save(output_png, format="PNG", dpi=(300, 300))
+
+    # Convert to Print-Ready PDF
     run_cmd(
         f'/usr/lib/cups/filter/imagetopdf 1 fahad "aadhaar_job" 1 "PageSize=A4" "{output_png}" > "{output_pdf}"'
     )
@@ -204,8 +256,8 @@ def print_file(
     file_path: str,
     printer_name: str = "Brother-DCP-T710W-USB",
     media_type: str = "Plain",
-    color_mode: str = "Mono",
-    resolution: str = "PlainFast"
+    color_mode: str = "Color",
+    resolution: str = "Normal"
 ) -> str:
     """
     Send document directly to CUPS printer with accurate parameters.
@@ -214,7 +266,6 @@ def print_file(
     if not target_path.exists():
         raise FileNotFoundError(f"File to print not found: {file_path}")
 
-    # Build options
     opts = [
         "-o PageSize=A4",
         "-o fit-to-page",

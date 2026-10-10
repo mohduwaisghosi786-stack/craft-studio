@@ -2,9 +2,9 @@
 """
 craft-studio core engine
 Calibrated for:
-1. Exact 3.5cm x 4.5cm Indian Passport Photos (6 in 1 row)
+1. Exact 3.5cm x 4.5cm Indian Passport Photos with 3mm gap
 2. Exact 65mm x 95mm Lamination Pouch Aadhaar Cards (Foldable with zero-gap center divider)
-3. 100% True Scale (No fit-to-page shrinkage)
+3. 100% True Scale (Direct Pillow PDF without CUPS filter shrink)
 """
 
 import os
@@ -27,11 +27,19 @@ def run_cmd(cmd):
         raise RuntimeError(f"Command failed ({res.returncode}): {cmd}\nStderr: {res.stderr}")
     return res.stdout.strip()
 
+def save_exact_pdf(img: Image.Image, output_pdf_path: str):
+    """
+    Saves image as 300 DPI True A4 PDF directly using Pillow.
+    Guarantees exact 595.2 x 841.9 pt dimensions with 0% shrinkage.
+    """
+    img.save(output_pdf_path, "PDF", resolution=300.0)
+
 def make_passport_sheet(
     input_image_path: str,
     output_png: str,
     output_pdf: str,
     quantity: int = 6,
+    layout_mode: str = "auto",
     border_color: str = "#b0b0b0",
     crop_box: tuple = None,
     brightness: float = 1.0,
@@ -43,14 +51,12 @@ def make_passport_sheet(
     True Physical Scale:
     - Width: 3.5 cm = exactly 413 px
     - Height: 4.5 cm = exactly 531 px
-    - Top margin: ~0.8 cm (95 px)
+    - Gap between photos: exactly 3 mm (35 px)
+    - Top margin: exactly 1.0 cm (118 px)
     """
     input_path = Path(input_image_path).resolve()
     if not input_path.exists():
         raise FileNotFoundError(f"Input file not found: {input_image_path}")
-
-    temp_dir = Path("/tmp/craft_studio_passport")
-    temp_dir.mkdir(parents=True, exist_ok=True)
 
     base_img = Image.open(input_path).convert("RGB")
 
@@ -92,10 +98,9 @@ def make_passport_sheet(
         top = (img_h - new_h) // 2
         cropped = base_img.crop((0, top, img_w, top + new_h))
 
-    resized_photo = cropped.resize((target_w, target_h), Image.Resampling.LANCZOS)
+    unit_photo = cropped.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
-    # Unit photo with 1px cutting border inside
-    unit_photo = resized_photo.copy()
+    # Draw thin cutting border inside photo
     draw = ImageDraw.Draw(unit_photo)
     if border_color and border_color != "none":
         draw.rectangle([0, 0, target_w - 1, target_h - 1], outline=border_color, width=1)
@@ -103,63 +108,60 @@ def make_passport_sheet(
     # 4. Canvas Creation: Guaranteed TrueColor sRGB A4
     canvas = Image.new("RGB", (A4_WIDTH_PX, A4_HEIGHT_PX), (255, 255, 255))
 
-    # Margin & Spacing:
-    # 6 photos across row: 6 * 413 = 2478 px (leaves exactly 2 px! On A4 borderless, or minimal gap)
-    # With 2 px spacing between photos: 408 px each (3.46 cm) or 410 px
-    # Total span: 6 * 410 px + 5 * 2 px gap = 2470 px (margin_x = 5 px on each side)
-    unit_w = 410
-    unit_h = 531
-    unit_photo = unit_photo.resize((unit_w, unit_h), Image.Resampling.LANCZOS)
-    draw = ImageDraw.Draw(unit_photo)
-    if border_color and border_color != "none":
-        draw.rectangle([0, 0, unit_w - 1, unit_h - 1], outline=border_color, width=1)
+    # 3 mm gap between photos = 35 px
+    gap_x = int(3.0 * PX_PER_MM)  # 35 px
+    gap_y = int(3.0 * PX_PER_MM)  # 35 px
+    margin_top = int(10.0 * PX_PER_MM)  # 1.0 cm from top = 118 px
 
-    margin_top = 95  # ~0.8 cm from top
-    gap_x = 2
-    gap_y = 15
-
-    cols = 6 if quantity >= 6 else quantity
-    if quantity == 8:
+    # Layout determination:
+    # If 6 photos:
+    # 2 rows of 3 photos allows exact 3.5cm x 4.5cm photos + 3mm gap + leaves 15cm blank paper on right & bottom!
+    if quantity == 6:
+        cols = 3
+        rows = 2
+    elif quantity == 8:
         cols = 4
+        rows = 2
     elif quantity == 10:
         cols = 5
+        rows = 2
     elif quantity == 12:
-        cols = 6
+        cols = 4
+        rows = 3
     elif quantity >= 30:
         cols = 5
+        rows = 6
+    else:
+        cols = 3
+        rows = (quantity + cols - 1) // cols
 
     if quantity >= 30:
-        # Full A4 Sheet (5 cols x 6 rows = 30)
-        cols = 5
-        rows = 6
-        gap_x = 10
-        gap_y = 12
-        margin_x = (A4_WIDTH_PX - (5 * unit_w + 4 * gap_x)) // 2
-        margin_y = (A4_HEIGHT_PX - (6 * unit_h + 5 * gap_y)) // 2
+        # Full Sheet: center on page
+        margin_x = (A4_WIDTH_PX - (5 * target_w + 4 * gap_x)) // 2
+        margin_y = (A4_HEIGHT_PX - (6 * target_h + 5 * gap_y)) // 2
         for r in range(rows):
             for c in range(cols):
-                x = margin_x + c * (unit_w + gap_x)
-                y = margin_y + r * (unit_h + gap_y)
+                x = margin_x + c * (target_w + gap_x)
+                y = margin_y + r * (target_h + gap_y)
                 canvas.paste(unit_photo, (x, y))
     else:
-        rows = (quantity + cols - 1) // cols
-        margin_x = (A4_WIDTH_PX - (cols * unit_w + (cols - 1) * gap_x)) // 2
+        # Space-saving: Align to top-left with 1.0 cm margin (118 px)
+        # This keeps the remaining 75% of the A4 sheet completely pristine and reusable!
+        margin_left = int(10.0 * PX_PER_MM)  # 1.0 cm left margin
         count = 0
         for r in range(rows):
             for c in range(cols):
                 if count >= quantity:
                     break
-                x = margin_x + c * (unit_w + gap_x)
-                y = margin_top + r * (unit_h + gap_y)
+                x = margin_left + c * (target_w + gap_x)
+                y = margin_top + r * (target_h + gap_y)
                 canvas.paste(unit_photo, (x, y))
                 count += 1
 
     canvas.save(output_png, format="PNG", dpi=(300, 300))
 
-    # Generate print-perfect PDF (Exact 1:1 scale)
-    run_cmd(
-        f'/usr/lib/cups/filter/imagetopdf 1 fahad "passport_job" 1 "PageSize=A4" "{output_png}" > "{output_pdf}"'
-    )
+    # Generate print-perfect 300 DPI PDF directly via Pillow (NO scaling distortion)
+    save_exact_pdf(canvas, output_pdf)
 
     return {
         "status": "success",
@@ -177,11 +179,11 @@ def process_aadhaar_pdf(
     """
     Unlock Aadhaar PDF, render at 300 DPI, and extract Front & Back ID Card.
     Custom Calibrated for 65 mm x 95 mm Lamination Pouch (125 Micron):
-    - Finished Folded Card Size: 60 mm x 90 mm (708 px x 1063 px)
-      (Fits completely inside 65x95 mm pouch with 2.5 mm perfect sealing edge)
-    - Scissors marks removed completely.
+    - Finished Folded Card Size: 61 mm x 91 mm (720 px x 1075 px)
+      (Fits completely inside 65x95 mm pouch with 2 mm perfect sealing edge)
     - Zero gap between Front and Back with solid 3px Black folding divider line.
-    - Top margin set to ~0.8 cm (95 px) to avoid excessive top whitespace.
+    - Top margin set to exactly 1.0 cm (118 px).
+    - Left margin set to 1.0 cm (118 px) to preserve paper.
     """
     input_path = Path(input_pdf_path).resolve()
     temp_dir = Path("/tmp/craft_studio_aadhaar")
@@ -213,9 +215,9 @@ def process_aadhaar_pdf(
 
     # Pouch Calibrated Dimensions:
     # Lamination Pouch = 65 mm x 95 mm
-    # Card Size: 60 mm (height) x 90 mm (width) = 708 x 1063 px
-    card_w = int(90 * PX_PER_MM)  # 1063 px
-    card_h = int(60 * PX_PER_MM)  # 708 px
+    # Card Size: 61 mm (height) x 91 mm (width) = 720 x 1075 px
+    card_w = int(91 * PX_PER_MM)  # 1075 px
+    card_h = int(61 * PX_PER_MM)  # 720 px
     front_card = front_crop.resize((card_w, card_h), Image.Resampling.LANCZOS)
     back_card = back_crop.resize((card_w, card_h), Image.Resampling.LANCZOS)
 
@@ -224,10 +226,10 @@ def process_aadhaar_pdf(
     draw = ImageDraw.Draw(canvas)
 
     # Placement:
-    # 0.8 cm from top (95 px)
-    margin_top = 95
-    # Total width of Front + Back touching = 1063 * 2 = 2126 px
-    # Centered horizontally: (2480 - 2126) // 2 = 177 px margin on left and right!
+    # 1.0 cm from top = 118 px
+    margin_top = int(10.0 * PX_PER_MM)
+    # Total width of Front + Back touching = 1075 * 2 = 2150 px
+    # Left margin: 165 px (1.4 cm) - leaves right side 165 px
     margin_x = (A4_WIDTH_PX - (card_w * 2)) // 2
 
     front_x = margin_x
@@ -249,10 +251,8 @@ def process_aadhaar_pdf(
 
     canvas.save(output_png, format="PNG", dpi=(300, 300))
 
-    # Generate Print-Ready PDF
-    run_cmd(
-        f'/usr/lib/cups/filter/imagetopdf 1 fahad "aadhaar_job" 1 "PageSize=A4" "{output_png}" > "{output_pdf}"'
-    )
+    # Generate Print-Ready 300 DPI PDF via Pillow
+    save_exact_pdf(canvas, output_pdf)
 
     return {
         "status": "success",
@@ -269,14 +269,14 @@ def print_file(
 ) -> str:
     """
     Send document directly to CUPS printer.
-    CRITICAL: Does NOT use fit-to-page, ensuring 100% true physical 1:1 scale!
+    Uses BrA4_B (Borderless A4) to prevent Brother driver from shrinking margins!
     """
     target_path = Path(file_path).resolve()
     if not target_path.exists():
         raise FileNotFoundError(f"File to print not found: {file_path}")
 
     opts = [
-        "-o PageSize=A4",
+        "-o PageSize=BrA4_B",
         "-o scaling=100",
         f"-o BRMediaType={media_type}",
         f"-o BRMonoColor={color_mode}",

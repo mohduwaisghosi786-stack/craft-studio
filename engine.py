@@ -371,6 +371,17 @@ def print_file(
         "-o BRJpeg=Recommended",
         "-o BRColorMatching=Natural"
     ]
+    # Check if running on Windows
+    if sys.platform.startswith('win'):
+        try:
+            # On Windows, os.startfile with 'print' sends to default or selected printer with native properties dialog
+            os.startfile(str(target_path), "print")
+            return f"Printed via Windows Print Spooler: {target_path.name}"
+        except Exception as e:
+            # Fallback to opening file in default viewer if direct print verb isn't registered
+            os.startfile(str(target_path))
+            return f"Opened PDF in Windows Viewer for 100% True Scale Print ({e})"
+
     cmd = f'lp -d "{printer_name}" {" ".join(opts)} "{target_path}"'
     out = run_cmd(cmd)
     return out

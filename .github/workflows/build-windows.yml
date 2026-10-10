@@ -36,12 +36,19 @@ jobs:
         run: |
           powershell Compress-Archive -Path dist/UWAIS-Internet-Cafe-Studio-x64 -DestinationPath dist/UWAIS-Internet-Cafe-Studio-x64-Setup.zip
 
+      - name: Build Inno Setup Windows Installer
+        run: |
+          choco install innosetup -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+          Move-Item Output\UWAIS-Internet-Cafe-Studio-x64-Setup.exe dist\
+
       - name: Upload 64-bit Release Assets
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             dist/UWAIS-Internet-Cafe-Studio-x64-Portable.exe
+            dist/UWAIS-Internet-Cafe-Studio-x64-Setup.exe
             dist/UWAIS-Internet-Cafe-Studio-x64-Setup.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

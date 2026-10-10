@@ -14,16 +14,26 @@ import sys
 import email
 from email.policy import default
 from pathlib import Path
+import webbrowser
 from engine import make_passport_sheet, process_aadhaar_pdf, print_file
 
 PORT = 8091
-BASE_DIR = Path(__file__).parent.resolve()
-UPLOAD_DIR = BASE_DIR / "uploads"
-OUTPUT_DIR = BASE_DIR / "outputs"
-TEMPLATE_PATH = BASE_DIR / "templates" / "index.html"
 
-UPLOAD_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
+# Detect if running as PyInstaller bundled executable
+if getattr(sys, 'frozen', False):
+    BUNDLE_DIR = Path(sys._MEIPASS)
+    # Store uploads and outputs in user's home / AppData to avoid permission errors
+    DATA_DIR = Path.home() / ".uwais_cafe_studio"
+else:
+    BUNDLE_DIR = Path(__file__).parent.resolve()
+    DATA_DIR = BUNDLE_DIR
+
+UPLOAD_DIR = DATA_DIR / "uploads"
+OUTPUT_DIR = DATA_DIR / "outputs"
+TEMPLATE_PATH = BUNDLE_DIR / "templates" / "index.html"
+
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def parse_multipart(headers, rfile):
     content_type = headers.get('Content-Type', '')
@@ -164,8 +174,14 @@ class ReusableTCPServer(socketserver.TCPServer):
     allow_reuse_address = True
 
 def start_server():
+    url = f"http://localhost:{PORT}"
+    print(f"UWAIS INternet CAfe Studio running at {url}")
+    # On Windows or when frozen standalone, auto-open the browser
+    if getattr(sys, 'frozen', False) or sys.platform.startswith('win'):
+        import threading
+        threading.Timer(1.2, lambda: webbrowser.open(url)).start()
+
     with ReusableTCPServer(("", PORT), CraftStudioHandler) as httpd:
-        print(f"Craft Studio server running at http://localhost:{PORT}")
         httpd.serve_forever()
 
 if __name__ == "__main__":

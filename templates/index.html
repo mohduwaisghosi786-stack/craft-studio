@@ -35,9 +35,17 @@
         select, input[type="text"] { width: 100%; background: #0b0f19; border: 1px solid var(--border); padding: 12px 14px; border-radius: 10px; color: var(--text); font-size: 1rem; outline: none; transition: 0.2s; }
         select:focus, input:focus { border-color: var(--primary); }
 
-        .dropzone { border: 2px dashed var(--border); border-radius: 14px; padding: 35px 20px; text-align: center; cursor: pointer; background: rgba(11, 15, 25, 0.5); transition: 0.2s; }
+        .dropzone { border: 2px dashed var(--border); border-radius: 14px; padding: 30px 20px; text-align: center; cursor: pointer; background: rgba(11, 15, 25, 0.5); transition: 0.2s; }
         .dropzone:hover { border-color: var(--primary); background: rgba(59, 130, 246, 0.05); }
-        .dropzone p { color: var(--muted); margin-top: 8px; font-size: 0.95rem; }
+        .dropzone p { color: var(--muted); margin-top: 6px; font-size: 0.95rem; }
+
+        /* Manual Photo Adjustments */
+        .adjust-panel { background: #0c1424; border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-top: 18px; display: none; }
+        .adjust-title { font-weight: 700; color: #60a5fa; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .slider-group { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .slider-group label { width: 110px; margin-bottom: 0; font-size: 0.9rem; }
+        .slider-group input[type="range"] { flex: 1; accent-color: var(--primary); cursor: pointer; }
+        .slider-val { width: 45px; text-align: right; font-weight: 600; font-size: 0.85rem; color: #93c5fd; }
 
         .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; border: none; transition: 0.2s; }
         .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; box-shadow: 0 4px 15px var(--primary-glow); }
@@ -45,7 +53,9 @@
         .btn-success { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
         
         .preview-area { display: none; margin-top: 25px; text-align: center; }
-        .preview-img { max-width: 100%; max-height: 520px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .preview-wrapper { width: 100%; overflow: auto; background: #000; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .preview-img { max-width: 100%; height: auto; border-radius: 6px; display: block; margin: 0 auto; box-shadow: 0 5px 25px rgba(0,0,0,0.8); }
+        
         .print-panel { background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 14px; padding: 20px; }
         .status-badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 12px; }
         .status-ready { background: rgba(16, 185, 129, 0.2); color: #34d399; }
@@ -55,7 +65,7 @@
     <div class="container">
         <header>
             <h1>⚡ Craft Studio</h1>
-            <p class="subtitle">Studio Quality Passport Photos & Aadhaar ID Card Auto-Layout System</p>
+            <p class="subtitle">Manual Image Control & Precise Aadhaar ID Card Auto-Alignment</p>
         </header>
 
         <div class="tabs">
@@ -69,8 +79,31 @@
                 <div class="dropzone" onclick="document.getElementById('file-passport').click()">
                     <span style="font-size: 2.2rem;">📁</span>
                     <h3 id="passport-file-label" style="margin-top: 8px;">Select Photo</h3>
-                    <p>Click or Drop Photo (JPG, PNG, WebP) - Studio Color Enhanced</p>
+                    <p>Click or Drop Photo (JPG, PNG, WebP)</p>
                     <input type="file" id="file-passport" accept="image/*" style="display:none" onchange="fileSelected('passport')">
+                </div>
+
+                <!-- Manual Tuning Panel -->
+                <div id="adjust-panel" class="adjust-panel">
+                    <div class="adjust-title">
+                        <span>🛠️ Manual Photo Tuning (Adjust to your taste)</span>
+                        <button type="button" onclick="resetAdjustments()" style="background:none; border:none; color:#f87171; cursor:pointer; font-size:0.85rem;">Reset</button>
+                    </div>
+                    <div class="slider-group">
+                        <label>☀️ Brightness:</label>
+                        <input type="range" id="adj-bright" min="0.6" max="1.5" step="0.05" value="1.0" oninput="updateVal('bright', this.value)">
+                        <span id="val-bright" class="slider-val">1.0</span>
+                    </div>
+                    <div class="slider-group">
+                        <label>🌓 Contrast:</label>
+                        <input type="range" id="adj-contrast" min="0.6" max="1.5" step="0.05" value="1.0" oninput="updateVal('contrast', this.value)">
+                        <span id="val-contrast" class="slider-val">1.0</span>
+                    </div>
+                    <div class="slider-group">
+                        <label>🎨 Saturation:</label>
+                        <input type="range" id="adj-sat" min="0.5" max="1.8" step="0.05" value="1.0" oninput="updateVal('sat', this.value)">
+                        <span id="val-sat" class="slider-val">1.0</span>
+                    </div>
                 </div>
 
                 <div class="grid-2" style="margin-top: 20px;">
@@ -94,7 +127,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="margin-top: 25px;">⚡ Generate Studio Passport Sheet (Color)</button>
+                <button type="submit" class="btn btn-primary" style="margin-top: 25px;">⚡ Generate Passport Sheet (True Color)</button>
             </form>
         </div>
 
@@ -111,20 +144,22 @@
                 <div style="margin-top: 20px;">
                     <label>Aadhaar PDF Password (Visible Text - First 4 Letters + Birth Year):</label>
                     <input type="text" id="aadhaar-pw" placeholder="e.g. MOHD1998 (Enter password directly)">
-                    <p style="color: var(--muted); font-size: 0.85rem; margin-top: 5px;">ℹ️ Password visible mode on hai taaki type karne me koi galti na ho.</p>
+                    <p style="color: var(--muted); font-size: 0.85rem; margin-top: 5px;">ℹ️ Password visible mode on hai taaki galti na ho.</p>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="margin-top: 25px;">⚡ Extract & Format Full ID Card (Color)</button>
+                <button type="submit" class="btn btn-primary" style="margin-top: 25px;">⚡ Extract & Format Full ID Card</button>
             </form>
         </div>
 
         <!-- RESULT & PRINT PANEL -->
         <div id="result-panel" class="card preview-area">
-            <span class="status-badge status-ready">✓ Color Sheet Ready for Print</span>
-            <img id="preview-image" class="preview-img" src="" alt="Preview">
+            <span class="status-badge status-ready">✓ Sheet Ready for Print</span>
+            <div class="preview-wrapper">
+                <img id="preview-image" class="preview-img" src="" alt="Preview">
+            </div>
 
             <div class="print-panel">
-                <h3 style="margin-bottom: 15px; color: #34d399;">🖨️ Professional Brother Printer Controls</h3>
+                <h3 style="margin-bottom: 15px; color: #34d399;">🖨️ Brother DCP-T710W Printer Controls</h3>
                 
                 <div class="grid-3" style="text-align: left; margin-bottom: 20px;">
                     <div>
@@ -146,7 +181,7 @@
                         <label>Print Quality & Resolution:</label>
                         <select id="print-quality">
                             <option value="Normal">💎 Normal Quality (Recommended)</option>
-                            <option value="High">👑 High Quality (Vivid Studio)</option>
+                            <option value="High">👑 High Quality (Vivid)</option>
                             <option value="Best">⭐ Best Quality (Ultra Sharp)</option>
                             <option value="PlainFast">⚡ Fast Draft (Ink Saver / B&W)</option>
                         </select>
@@ -199,7 +234,23 @@
             const input = document.getElementById('file-' + type);
             if(input.files.length > 0) {
                 document.getElementById(type + '-file-label').innerText = 'Selected: ' + input.files[0].name;
+                if(type === 'passport') {
+                    document.getElementById('adjust-panel').style.display = 'block';
+                }
             }
+        }
+
+        function updateVal(type, val) {
+            document.getElementById('val-' + type).innerText = val;
+        }
+
+        function resetAdjustments() {
+            document.getElementById('adj-bright').value = 1.0;
+            document.getElementById('adj-contrast').value = 1.0;
+            document.getElementById('adj-sat').value = 1.0;
+            updateVal('bright', '1.0');
+            updateVal('contrast', '1.0');
+            updateVal('sat', '1.0');
         }
 
         async function handlePassport(e) {
@@ -211,6 +262,9 @@
             formData.append('file', fileInput.files[0]);
             formData.append('quantity', document.getElementById('pass-qty').value);
             formData.append('border', document.getElementById('pass-border').value);
+            formData.append('brightness', document.getElementById('adj-bright').value);
+            formData.append('contrast', document.getElementById('adj-contrast').value);
+            formData.append('saturation', document.getElementById('adj-sat').value);
 
             const res = await fetch('/api/passport', { method: 'POST', body: formData });
             const data = await res.json();
@@ -254,7 +308,6 @@
             const media = document.getElementById('print-media').value;
             const quality = document.getElementById('print-quality').value;
             const color = document.getElementById('print-color').value;
-            const speed = document.getElementById('print-speed').value;
 
             document.getElementById('print-status').innerText = '⏳ Sending print job to ' + printer + '...';
 
@@ -266,8 +319,7 @@
                     printer: printer,
                     media: media,
                     quality: quality,
-                    color: color,
-                    speed: speed
+                    color: color
                 })
             });
             const data = await res.json();

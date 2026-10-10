@@ -16,7 +16,7 @@ from email.policy import default
 from pathlib import Path
 from engine import make_passport_sheet, process_aadhaar_pdf, print_file
 
-PORT = 8090
+PORT = 8091
 BASE_DIR = Path(__file__).parent.resolve()
 UPLOAD_DIR = BASE_DIR / "uploads"
 OUTPUT_DIR = BASE_DIR / "outputs"
@@ -77,6 +77,9 @@ class CraftStudioHandler(http.server.SimpleHTTPRequestHandler):
             file_info = files.get('file')
             qty = int(fields.get('quantity', '6'))
             border = fields.get('border', '#b0b0b0')
+            bright = float(fields.get('brightness', '1.0'))
+            contrast = float(fields.get('contrast', '1.0'))
+            sat = float(fields.get('saturation', '1.0'))
 
             input_path = UPLOAD_DIR / f"upload_{file_info['filename']}"
             with open(input_path, 'wb') as f:
@@ -86,7 +89,11 @@ class CraftStudioHandler(http.server.SimpleHTTPRequestHandler):
             out_pdf = OUTPUT_DIR / "passport_sheet.pdf"
 
             try:
-                res = make_passport_sheet(str(input_path), str(out_png), str(out_pdf), quantity=qty, border_color=border, enhance=True)
+                res = make_passport_sheet(
+                    str(input_path), str(out_png), str(out_pdf),
+                    quantity=qty, border_color=border,
+                    brightness=bright, contrast=contrast, saturation=sat
+                )
                 res["png_url"] = "/outputs/passport_sheet.png"
                 res["pdf_url"] = "/outputs/passport_sheet.pdf"
                 self.send_json(res)
@@ -136,8 +143,11 @@ class CraftStudioHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data).encode("utf-8"))
 
+class ReusableTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
+
 def start_server():
-    with socketserver.TCPServer(("", PORT), CraftStudioHandler) as httpd:
+    with ReusableTCPServer(("", PORT), CraftStudioHandler) as httpd:
         print(f"Craft Studio server running at http://localhost:{PORT}")
         httpd.serve_forever()
 

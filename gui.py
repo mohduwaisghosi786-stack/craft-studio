@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 craft-studio Native Desktop GUI
-Built using PyGObject (GTK 3) - Native Linux Desktop Application.
+Built using PyGObject (GTK 3) - Modern, clean, fast Linux Desktop Application.
 Supports exact 3.5x4.5cm Passport photos and 65x95mm Lamination Pouch Aadhaar Cards.
 """
 
@@ -19,7 +19,7 @@ from engine import make_passport_sheet, process_aadhaar_pdf, print_file
 class CraftStudioWindow(Gtk.Window):
     def __init__(self):
         super().__init__(title="Craft Studio - Passport & Aadhaar")
-        self.set_default_size(880, 720)
+        self.set_default_size(900, 740)
         self.set_border_width(15)
         self.set_position(Gtk.WindowPosition.CENTER)
 
@@ -34,7 +34,7 @@ class CraftStudioWindow(Gtk.Window):
         title_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         lbl_title = Gtk.Label()
         lbl_title.set_markup("<span size='xx-large' weight='bold' foreground='#3b82f6'>⚡ Craft Studio</span>")
-        lbl_sub = Gtk.Label(label="Indian Passport (3.5 × 4.5 cm) & 65 × 95 mm Pouch Aadhaar System")
+        lbl_sub = Gtk.Label(label="Indian Passport (3.5 × 4.5 cm) & 65 × 95 mm Lamination Pouch System")
         title_box.pack_start(lbl_title, False, False, 0)
         title_box.pack_start(lbl_sub, False, False, 0)
         main_box.pack_start(title_box, False, False, 0)
@@ -56,7 +56,7 @@ class CraftStudioWindow(Gtk.Window):
         box_qty = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         box_qty.pack_start(Gtk.Label(label="Quantity:"), False, False, 0)
         self.combo_qty = Gtk.ComboBoxText()
-        self.combo_qty.append("6", "6 Photos (Exact 3.5 × 4.5 cm Row - Top Aligned)")
+        self.combo_qty.append("6", "6 Photos (1 Single Row - 1.5mm Gap & Cutting Guides)")
         self.combo_qty.append("8", "8 Photos (2 Rows)")
         self.combo_qty.append("10", "10 Photos (2 Rows)")
         self.combo_qty.append("12", "12 Photos (2 Rows)")
@@ -85,7 +85,7 @@ class CraftStudioWindow(Gtk.Window):
         tab1_box.pack_start(box_tune, False, False, 0)
 
         # Generate Button
-        self.btn_gen_passport = Gtk.Button(label="⚡ Generate Passport Sheet (Exact 3.5 × 4.5 cm)")
+        self.btn_gen_passport = Gtk.Button(label="⚡ Generate Passport Sheet (6 Photos - Single Row)")
         self.btn_gen_passport.connect("clicked", self.on_generate_passport)
         tab1_box.pack_start(self.btn_gen_passport, False, False, 0)
 
@@ -110,7 +110,7 @@ class CraftStudioWindow(Gtk.Window):
         tab2_box.pack_start(box_pw, False, False, 0)
 
         # Generate Aadhaar Button
-        self.btn_gen_aadhaar = Gtk.Button(label="⚡ Extract ID Card (Calibrated for 65 × 95 mm Pouch)")
+        self.btn_gen_aadhaar = Gtk.Button(label="⚡ Extract ID Card (Exact 65 × 95 mm Pouch Fit)")
         self.btn_gen_aadhaar.connect("clicked", self.on_generate_aadhaar)
         tab2_box.pack_start(self.btn_gen_aadhaar, False, False, 0)
 
@@ -124,7 +124,7 @@ class CraftStudioWindow(Gtk.Window):
 
         # Scrolled Window for Preview
         scrolled = Gtk.ScrolledWindow()
-        scrolled.set_min_content_height(280)
+        scrolled.set_min_content_height(300)
         self.img_preview = Gtk.Image()
         scrolled.add(self.img_preview)
         frame_box.pack_start(scrolled, True, True, 0)
@@ -144,6 +144,13 @@ class CraftStudioWindow(Gtk.Window):
         self.combo_media.append("Plain", "Plain Paper")
         self.combo_media.set_active(0)
         print_opts_box.pack_start(self.combo_media, False, False, 0)
+
+        print_opts_box.pack_start(Gtk.Label(label="Color Mode:"), False, False, 0)
+        self.combo_color = Gtk.ComboBoxText()
+        self.combo_color.append("Color", "Color (Photo/Card)")
+        self.combo_color.append("Mono", "Black & White (Mono)")
+        self.combo_color.set_active(0)
+        print_opts_box.pack_start(self.combo_color, False, False, 0)
 
         print_opts_box.pack_start(Gtk.Label(label="Quality:"), False, False, 0)
         self.combo_quality = Gtk.ComboBoxText()
@@ -181,7 +188,7 @@ class CraftStudioWindow(Gtk.Window):
         qty = int(self.combo_qty.get_active_id())
         b = self.adj_b.get_value()
         c = self.adj_c.get_value()
-        self.lbl_status.set_text("⏳ Generating 3.5 × 4.5 cm passport sheet...")
+        self.lbl_status.set_text("⏳ Generating single row passport sheet...")
 
         threading.Thread(target=self._process_passport_thread, args=(qty, b, c)).start()
 
@@ -191,7 +198,7 @@ class CraftStudioWindow(Gtk.Window):
         try:
             res = make_passport_sheet(self.passport_file, out_png, out_pdf, quantity=qty, brightness=b, contrast=c)
             self.current_result = res
-            GLib.idle_add(self._update_preview, out_png, "✓ Passport Sheet Ready (3.5 × 4.5 cm)!")
+            GLib.idle_add(self._update_preview, out_png, "✓ Passport Sheet Ready (6 in 1 Row)!")
         except Exception as e:
             GLib.idle_add(self.lbl_status.set_text, f"❌ Error: {str(e)}")
 
@@ -219,7 +226,7 @@ class CraftStudioWindow(Gtk.Window):
 
     def _update_preview(self, png_path, status_text):
         try:
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(png_path, 420, 320, True)
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(png_path, 440, 320, True)
             self.img_preview.set_from_pixbuf(pixbuf)
             self.btn_print.set_sensitive(True)
             self.lbl_status.set_text(status_text)
@@ -232,9 +239,10 @@ class CraftStudioWindow(Gtk.Window):
         printer = self.combo_printer.get_active_id()
         media = self.combo_media.get_active_id()
         quality = self.combo_quality.get_active_id()
+        color = self.combo_color.get_active_id()
 
         self.lbl_status.set_text(f"⏳ Printing to {printer} (100% True Scale)...")
-        threading.Thread(target=self._print_thread, args=(self.current_result["pdf"], printer, media, "Color", quality)).start()
+        threading.Thread(target=self._print_thread, args=(self.current_result["pdf"], printer, media, color, quality)).start()
 
     def _print_thread(self, pdf_path, printer, media, color, res_mode):
         try:

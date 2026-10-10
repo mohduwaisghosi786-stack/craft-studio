@@ -2,15 +2,17 @@
 """
 craft-studio core engine
 Calibrated for:
-1. 6 Passport Photos in a Single Top Row:
-   - Left Margin: Exactly 0.5 cm (59 px)
-   - Right Margin: Exactly 0.5 cm (59 px)
-   - Top Margin: Exactly 1.0 cm (118 px)
-   - Gap Between Photos: Exactly 2 mm (24 px)
-   - Height: Exactly 4.5 cm (531 px)
-   - Width: Maximized across row (374 px / ~3.2 cm)
-2. Exact 65mm x 95mm Lamination Pouch Aadhaar Cards (Foldable with zero-gap center divider)
-3. 100% True Scale (Direct Pillow PDF without CUPS filter shrink, Borderless A4)
+1. 6 Passport Photos in 1 Single Row:
+   - 1.5 mm Cutting Gap between photos
+   - Top and Bottom faint dashed cutting guide lines (very low ink)
+   - Left Margin: 0.5 cm (59 px), Right Margin: 0.5 cm (59 px)
+   - Top Margin: 1.0 cm (118 px)
+   - Height: 4.5 cm (531 px), Width: ~3.2 cm (378 px)
+2. Exact 65mm x 95mm Lamination Pouch (125 Micron):
+   - Folded Card: 88 mm x 58 mm (Leaves solid 3.5mm thermal seal border all around so lamination never peels off)
+   - 2px Center Folding Divider Line (Black)
+   - 1.0 cm Top Margin
+3. 100% True Scale Direct 300 DPI PDF (Borderless A4)
 """
 
 import os
@@ -40,12 +42,30 @@ def save_exact_pdf(img: Image.Image, output_pdf_path: str):
     """
     img.save(output_pdf_path, "PDF", resolution=300.0)
 
+def draw_dashed_line(draw, start, end, color="#cccccc", dash_len=8, gap_len=6, width=1):
+    """Draw a subtle, low-ink dashed cutting guideline."""
+    x1, y1 = start
+    x2, y2 = end
+    if y1 == y2:
+        # Horizontal dashed line
+        cur_x = x1
+        while cur_x < x2:
+            next_x = min(cur_x + dash_len, x2)
+            draw.line([(cur_x, y1), (next_x, y1)], fill=color, width=width)
+            cur_x += dash_len + gap_len
+    elif x1 == x2:
+        # Vertical dashed line
+        cur_y = y1
+        while cur_y < y2:
+            next_y = min(cur_y + dash_len, y2)
+            draw.line([(x1, cur_y), (x1, next_y)], fill=color, width=width)
+            cur_y += dash_len + gap_len
+
 def make_passport_sheet(
     input_image_path: str,
     output_png: str,
     output_pdf: str,
     quantity: int = 6,
-    layout_mode: str = "auto",
     border_color: str = "#b0b0b0",
     crop_box: tuple = None,
     brightness: float = 1.0,
@@ -59,9 +79,10 @@ def make_passport_sheet(
     - Top Margin: 1.0 cm (118 px)
     - Left Margin: 0.5 cm (59 px)
     - Right Margin: 0.5 cm (59 px)
-    - Gap between photos: Exactly 2.0 mm (24 px)
+    - Gap between photos: Exactly 1.5 mm (18 px)
     - Photo Height: Exactly 4.5 cm (531 px)
-    - Photo Width: 374 px (~3.2 cm)
+    - Photo Width: 378 px (~3.2 cm)
+    - Top & Bottom Faint Dashed Cutting Guide Lines
     """
     input_path = Path(input_image_path).resolve()
     if not input_path.exists():
@@ -95,21 +116,15 @@ def make_passport_sheet(
 
     # 3. Canvas Creation: Guaranteed TrueColor sRGB A4 (2480 x 3508 px)
     canvas = Image.new("RGB", (A4_WIDTH_PX, A4_HEIGHT_PX), (255, 255, 255))
+    draw = ImageDraw.Draw(canvas)
 
-    # Single Row Layout for 6 Photos:
-    # Left margin: 0.5 cm (59 px), Right margin: 0.5 cm (59 px)
-    # Top margin: 1.0 cm (118 px)
-    # Gap: 2 mm (24 px) -> 5 gaps = 120 px
-    # Total available width for 6 photos = 2480 - 59 - 59 - 120 = 2242 px -> 373.66 -> 374 px per photo!
-    # Height = exactly 4.5 cm = 531 px
     if quantity == 6:
-        photo_w = 374
-        photo_h = int(45 * PX_PER_MM)  # 531 px
-        gap_x = int(2.0 * PX_PER_MM)   # 24 px
+        photo_w = 378
+        photo_h = int(45 * PX_PER_MM)       # 531 px (4.5 cm)
+        gap_x = int(1.5 * PX_PER_MM)        # 18 px (1.5 mm)
         margin_left = int(5.0 * PX_PER_MM)  # 59 px (0.5 cm)
         margin_top = int(10.0 * PX_PER_MM)  # 118 px (1.0 cm)
 
-        # Smart crop to aspect ratio
         aspect = photo_w / photo_h
         img_w, img_h = base_img.size
         if (img_w / img_h) > aspect:
@@ -122,18 +137,26 @@ def make_passport_sheet(
             cropped = base_img.crop((0, top, img_w, top + new_h))
 
         unit_photo = cropped.resize((photo_w, photo_h), Image.Resampling.LANCZOS)
-        draw = ImageDraw.Draw(unit_photo)
+        unit_draw = ImageDraw.Draw(unit_photo)
         if border_color and border_color != "none":
-            draw.rectangle([0, 0, photo_w - 1, photo_h - 1], outline=border_color, width=1)
+            unit_draw.rectangle([0, 0, photo_w - 1, photo_h - 1], outline=border_color, width=1)
 
         # Paste all 6 photos in 1 single row
+        total_row_width = 6 * photo_w + 5 * gap_x
+        row_right = margin_left + total_row_width
+
         for i in range(6):
             x = margin_left + i * (photo_w + gap_x)
             y = margin_top
             canvas.paste(unit_photo, (x, y))
 
+        # Top & Bottom Faint Dashed Cutting Guide Lines
+        # Top guide line (3 px above photos)
+        draw_dashed_line(draw, (margin_left - 30, margin_top - 3), (row_right + 30, margin_top - 3), color="#c5c5c5", dash_len=8, gap_len=6, width=1)
+        # Bottom guide line (3 px below photos)
+        draw_dashed_line(draw, (margin_left - 30, margin_top + photo_h + 3), (row_right + 30, margin_top + photo_h + 3), color="#c5c5c5", dash_len=8, gap_len=6, width=1)
+
     elif quantity >= 30:
-        # Full A4 Page: 5 columns x 6 rows = 30 photos
         photo_w = 413
         photo_h = 531
         gap_x = 12
@@ -150,9 +173,9 @@ def make_passport_sheet(
             cropped = base_img.crop((0, top, img_w, top + new_h))
 
         unit_photo = cropped.resize((photo_w, photo_h), Image.Resampling.LANCZOS)
-        draw = ImageDraw.Draw(unit_photo)
+        unit_draw = ImageDraw.Draw(unit_photo)
         if border_color and border_color != "none":
-            draw.rectangle([0, 0, photo_w - 1, photo_h - 1], outline=border_color, width=1)
+            unit_draw.rectangle([0, 0, photo_w - 1, photo_h - 1], outline=border_color, width=1)
 
         margin_x = (A4_WIDTH_PX - (5 * photo_w + 4 * gap_x)) // 2
         margin_y = (A4_HEIGHT_PX - (6 * photo_h + 5 * gap_y)) // 2
@@ -163,11 +186,11 @@ def make_passport_sheet(
                 canvas.paste(unit_photo, (x, y))
 
     else:
-        # 8, 10, 12 photos: 2 rows layout with 2 mm gap and 0.5 cm margins
+        # 8, 10, 12 photos
         cols = quantity // 2
-        photo_w = (A4_WIDTH_PX - (2 * int(5.0 * PX_PER_MM)) - (cols - 1) * int(2.0 * PX_PER_MM)) // cols
-        photo_h = int(45 * PX_PER_MM)  # 531 px
-        gap_x = int(2.0 * PX_PER_MM)
+        photo_w = (A4_WIDTH_PX - (2 * int(5.0 * PX_PER_MM)) - (cols - 1) * int(1.5 * PX_PER_MM)) // cols
+        photo_h = int(45 * PX_PER_MM)
+        gap_x = int(1.5 * PX_PER_MM)
         gap_y = int(2.0 * PX_PER_MM)
         margin_left = int(5.0 * PX_PER_MM)
         margin_top = int(10.0 * PX_PER_MM)
@@ -184,9 +207,9 @@ def make_passport_sheet(
             cropped = base_img.crop((0, top, img_w, top + new_h))
 
         unit_photo = cropped.resize((photo_w, photo_h), Image.Resampling.LANCZOS)
-        draw = ImageDraw.Draw(unit_photo)
+        unit_draw = ImageDraw.Draw(unit_photo)
         if border_color and border_color != "none":
-            draw.rectangle([0, 0, photo_w - 1, photo_h - 1], outline=border_color, width=1)
+            unit_draw.rectangle([0, 0, photo_w - 1, photo_h - 1], outline=border_color, width=1)
 
         for r in range(2):
             for c in range(cols):
@@ -215,9 +238,9 @@ def process_aadhaar_pdf(
     """
     Unlock Aadhaar PDF, render at 300 DPI, and extract Front & Back ID Card.
     Custom Calibrated for 65 mm x 95 mm Lamination Pouch (125 Micron):
-    - Finished Folded Card Size: 61 mm x 91 mm (720 px x 1075 px)
-      (Fits completely inside 65x95 mm pouch with 2 mm perfect sealing edge)
-    - Zero gap between Front and Back with solid 3px Black folding divider line.
+    - Finished Folded Card Size: 58 mm x 88 mm (685 px x 1039 px)
+      (Leaves exactly 3.5 mm solid plastic weld seal on all sides so lamination NEVER peels off)
+    - Zero gap between Front and Back with solid 2px Black folding divider line.
     - Top margin set to exactly 1.0 cm (118 px).
     - Centered horizontally across A4 page.
     """
@@ -250,10 +273,9 @@ def process_aadhaar_pdf(
     back_crop = page_img.crop((1288, 2380, 2353, 3058))
 
     # Pouch Calibrated Dimensions:
-    # Lamination Pouch = 65 mm x 95 mm
-    # Card Size: 61 mm (height) x 91 mm (width) = 720 x 1075 px
-    card_w = int(91 * PX_PER_MM)  # 1075 px
-    card_h = int(61 * PX_PER_MM)  # 720 px
+    # 65 mm x 95 mm Pouch -> Card: 58 mm (height) x 88 mm (width) = 685 x 1039 px
+    card_w = int(88 * PX_PER_MM)  # 1039 px
+    card_h = int(58 * PX_PER_MM)  # 685 px
     front_card = front_crop.resize((card_w, card_h), Image.Resampling.LANCZOS)
     back_card = back_crop.resize((card_w, card_h), Image.Resampling.LANCZOS)
 
@@ -264,8 +286,8 @@ def process_aadhaar_pdf(
     # Placement:
     # 1.0 cm from top = 118 px
     margin_top = int(10.0 * PX_PER_MM)
-    # Total width of Front + Back touching = 1075 * 2 = 2150 px
-    # Left margin centered: (2480 - 2150) // 2 = 165 px
+    # Total width of Front + Back touching = 1039 * 2 = 2078 px
+    # Centered horizontally: (2480 - 2078) // 2 = 201 px margin on left and right
     margin_x = (A4_WIDTH_PX - (card_w * 2)) // 2
 
     front_x = margin_x
@@ -282,8 +304,8 @@ def process_aadhaar_pdf(
         width=2
     )
 
-    # Draw bold black divider line in the middle between front and back cards
-    draw.line([back_x, margin_top, back_x, card_bottom], fill="#000000", width=3)
+    # Draw 2px solid black divider line in the middle between front and back cards
+    draw.line([back_x, margin_top, back_x, card_bottom], fill="#000000", width=2)
 
     canvas.save(output_png, format="PNG", dpi=(300, 300))
 

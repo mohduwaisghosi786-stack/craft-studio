@@ -26,18 +26,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller pillow pypdf reportlab
 
-      - name: Build Standalone Windows Executable
+      - name: Build Standalone Windows Single-File EXE
         run: |
+          pyinstaller --noconfirm --onefile --windowed --add-data "templates;templates" --name "UWAIS-Internet-Cafe-Studio-Portable" app.py
           pyinstaller --noconfirm --onedir --windowed --add-data "templates;templates" --name "UWAIS-Internet-Cafe-Studio" app.py
 
-      - name: Compress Windows Build
+      - name: Compress Windows Directory Setup
         run: |
           powershell Compress-Archive -Path dist/UWAIS-Internet-Cafe-Studio -DestinationPath dist/UWAIS-Internet-Cafe-Studio-Windows.zip
 
-      - name: Upload Windows Asset to Release
+      - name: Upload Windows Assets to GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: dist/UWAIS-Internet-Cafe-Studio-Windows.zip
+          files: |
+            dist/UWAIS-Internet-Cafe-Studio-Portable.exe
+            dist/UWAIS-Internet-Cafe-Studio-Windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

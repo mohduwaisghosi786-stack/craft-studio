@@ -2,9 +2,15 @@
 """
 craft-studio core engine
 Calibrated for:
-1. Exact 3.5cm x 4.5cm Indian Passport Photos with 3mm gap
+1. 6 Passport Photos in a Single Top Row:
+   - Left Margin: Exactly 0.5 cm (59 px)
+   - Right Margin: Exactly 0.5 cm (59 px)
+   - Top Margin: Exactly 1.0 cm (118 px)
+   - Gap Between Photos: Exactly 2 mm (24 px)
+   - Height: Exactly 4.5 cm (531 px)
+   - Width: Maximized across row (374 px / ~3.2 cm)
 2. Exact 65mm x 95mm Lamination Pouch Aadhaar Cards (Foldable with zero-gap center divider)
-3. 100% True Scale (Direct Pillow PDF without CUPS filter shrink)
+3. 100% True Scale (Direct Pillow PDF without CUPS filter shrink, Borderless A4)
 """
 
 import os
@@ -48,15 +54,21 @@ def make_passport_sheet(
 ) -> dict:
     """
     Generate passport photo sheet on A4 canvas (300 DPI) in TRUE COLOR (RGB).
-    True Physical Scale:
-    - Width: 3.5 cm = exactly 413 px
-    - Height: 4.5 cm = exactly 531 px
-    - Gap between photos: exactly 3 mm (35 px)
-    - Top margin: exactly 1.0 cm (118 px)
+    6 Photos Configuration:
+    - Exactly 1 Single Row
+    - Top Margin: 1.0 cm (118 px)
+    - Left Margin: 0.5 cm (59 px)
+    - Right Margin: 0.5 cm (59 px)
+    - Gap between photos: Exactly 2.0 mm (24 px)
+    - Photo Height: Exactly 4.5 cm (531 px)
+    - Photo Width: 374 px (~3.2 cm)
     """
     input_path = Path(input_image_path).resolve()
     if not input_path.exists():
         raise FileNotFoundError(f"Input file not found: {input_image_path}")
+
+    temp_dir = Path("/tmp/craft_studio_passport")
+    temp_dir.mkdir(parents=True, exist_ok=True)
 
     base_img = Image.open(input_path).convert("RGB")
 
@@ -81,82 +93,106 @@ def make_passport_sheet(
         enh_s = ImageEnhance.Color(base_img)
         base_img = enh_s.enhance(saturation)
 
-    # 3. Exact 3.5 cm x 4.5 cm (413 x 531 px at 300 DPI)
-    target_w = int(35 * PX_PER_MM)  # 413 px
-    target_h = int(45 * PX_PER_MM)  # 531 px
-    aspect = target_w / target_h
-
-    img_w, img_h = base_img.size
-    img_aspect = img_w / img_h
-
-    if img_aspect > aspect:
-        new_w = int(img_h * aspect)
-        left = (img_w - new_w) // 2
-        cropped = base_img.crop((left, 0, left + new_w, img_h))
-    else:
-        new_h = int(img_w / aspect)
-        top = (img_h - new_h) // 2
-        cropped = base_img.crop((0, top, img_w, top + new_h))
-
-    unit_photo = cropped.resize((target_w, target_h), Image.Resampling.LANCZOS)
-
-    # Draw thin cutting border inside photo
-    draw = ImageDraw.Draw(unit_photo)
-    if border_color and border_color != "none":
-        draw.rectangle([0, 0, target_w - 1, target_h - 1], outline=border_color, width=1)
-
-    # 4. Canvas Creation: Guaranteed TrueColor sRGB A4
+    # 3. Canvas Creation: Guaranteed TrueColor sRGB A4 (2480 x 3508 px)
     canvas = Image.new("RGB", (A4_WIDTH_PX, A4_HEIGHT_PX), (255, 255, 255))
 
-    # 3 mm gap between photos = 35 px
-    gap_x = int(3.0 * PX_PER_MM)  # 35 px
-    gap_y = int(3.0 * PX_PER_MM)  # 35 px
-    margin_top = int(10.0 * PX_PER_MM)  # 1.0 cm from top = 118 px
-
-    # Layout determination:
-    # If 6 photos:
-    # 2 rows of 3 photos allows exact 3.5cm x 4.5cm photos + 3mm gap + leaves 15cm blank paper on right & bottom!
+    # Single Row Layout for 6 Photos:
+    # Left margin: 0.5 cm (59 px), Right margin: 0.5 cm (59 px)
+    # Top margin: 1.0 cm (118 px)
+    # Gap: 2 mm (24 px) -> 5 gaps = 120 px
+    # Total available width for 6 photos = 2480 - 59 - 59 - 120 = 2242 px -> 373.66 -> 374 px per photo!
+    # Height = exactly 4.5 cm = 531 px
     if quantity == 6:
-        cols = 3
-        rows = 2
-    elif quantity == 8:
-        cols = 4
-        rows = 2
-    elif quantity == 10:
-        cols = 5
-        rows = 2
-    elif quantity == 12:
-        cols = 4
-        rows = 3
-    elif quantity >= 30:
-        cols = 5
-        rows = 6
-    else:
-        cols = 3
-        rows = (quantity + cols - 1) // cols
+        photo_w = 374
+        photo_h = int(45 * PX_PER_MM)  # 531 px
+        gap_x = int(2.0 * PX_PER_MM)   # 24 px
+        margin_left = int(5.0 * PX_PER_MM)  # 59 px (0.5 cm)
+        margin_top = int(10.0 * PX_PER_MM)  # 118 px (1.0 cm)
 
-    if quantity >= 30:
-        # Full Sheet: center on page
-        margin_x = (A4_WIDTH_PX - (5 * target_w + 4 * gap_x)) // 2
-        margin_y = (A4_HEIGHT_PX - (6 * target_h + 5 * gap_y)) // 2
-        for r in range(rows):
-            for c in range(cols):
-                x = margin_x + c * (target_w + gap_x)
-                y = margin_y + r * (target_h + gap_y)
+        # Smart crop to aspect ratio
+        aspect = photo_w / photo_h
+        img_w, img_h = base_img.size
+        if (img_w / img_h) > aspect:
+            new_w = int(img_h * aspect)
+            left = (img_w - new_w) // 2
+            cropped = base_img.crop((left, 0, left + new_w, img_h))
+        else:
+            new_h = int(img_w / aspect)
+            top = (img_h - new_h) // 2
+            cropped = base_img.crop((0, top, img_w, top + new_h))
+
+        unit_photo = cropped.resize((photo_w, photo_h), Image.Resampling.LANCZOS)
+        draw = ImageDraw.Draw(unit_photo)
+        if border_color and border_color != "none":
+            draw.rectangle([0, 0, photo_w - 1, photo_h - 1], outline=border_color, width=1)
+
+        # Paste all 6 photos in 1 single row
+        for i in range(6):
+            x = margin_left + i * (photo_w + gap_x)
+            y = margin_top
+            canvas.paste(unit_photo, (x, y))
+
+    elif quantity >= 30:
+        # Full A4 Page: 5 columns x 6 rows = 30 photos
+        photo_w = 413
+        photo_h = 531
+        gap_x = 12
+        gap_y = 15
+        aspect = photo_w / photo_h
+        img_w, img_h = base_img.size
+        if (img_w / img_h) > aspect:
+            new_w = int(img_h * aspect)
+            left = (img_w - new_w) // 2
+            cropped = base_img.crop((left, 0, left + new_w, img_h))
+        else:
+            new_h = int(img_w / aspect)
+            top = (img_h - new_h) // 2
+            cropped = base_img.crop((0, top, img_w, top + new_h))
+
+        unit_photo = cropped.resize((photo_w, photo_h), Image.Resampling.LANCZOS)
+        draw = ImageDraw.Draw(unit_photo)
+        if border_color and border_color != "none":
+            draw.rectangle([0, 0, photo_w - 1, photo_h - 1], outline=border_color, width=1)
+
+        margin_x = (A4_WIDTH_PX - (5 * photo_w + 4 * gap_x)) // 2
+        margin_y = (A4_HEIGHT_PX - (6 * photo_h + 5 * gap_y)) // 2
+        for r in range(6):
+            for c in range(5):
+                x = margin_x + c * (photo_w + gap_x)
+                y = margin_y + r * (photo_h + gap_y)
                 canvas.paste(unit_photo, (x, y))
+
     else:
-        # Space-saving: Align to top-left with 1.0 cm margin (118 px)
-        # This keeps the remaining 75% of the A4 sheet completely pristine and reusable!
-        margin_left = int(10.0 * PX_PER_MM)  # 1.0 cm left margin
-        count = 0
-        for r in range(rows):
+        # 8, 10, 12 photos: 2 rows layout with 2 mm gap and 0.5 cm margins
+        cols = quantity // 2
+        photo_w = (A4_WIDTH_PX - (2 * int(5.0 * PX_PER_MM)) - (cols - 1) * int(2.0 * PX_PER_MM)) // cols
+        photo_h = int(45 * PX_PER_MM)  # 531 px
+        gap_x = int(2.0 * PX_PER_MM)
+        gap_y = int(2.0 * PX_PER_MM)
+        margin_left = int(5.0 * PX_PER_MM)
+        margin_top = int(10.0 * PX_PER_MM)
+
+        aspect = photo_w / photo_h
+        img_w, img_h = base_img.size
+        if (img_w / img_h) > aspect:
+            new_w = int(img_h * aspect)
+            left = (img_w - new_w) // 2
+            cropped = base_img.crop((left, 0, left + new_w, img_h))
+        else:
+            new_h = int(img_w / aspect)
+            top = (img_h - new_h) // 2
+            cropped = base_img.crop((0, top, img_w, top + new_h))
+
+        unit_photo = cropped.resize((photo_w, photo_h), Image.Resampling.LANCZOS)
+        draw = ImageDraw.Draw(unit_photo)
+        if border_color and border_color != "none":
+            draw.rectangle([0, 0, photo_w - 1, photo_h - 1], outline=border_color, width=1)
+
+        for r in range(2):
             for c in range(cols):
-                if count >= quantity:
-                    break
-                x = margin_left + c * (target_w + gap_x)
-                y = margin_top + r * (target_h + gap_y)
+                x = margin_left + c * (photo_w + gap_x)
+                y = margin_top + r * (photo_h + gap_y)
                 canvas.paste(unit_photo, (x, y))
-                count += 1
 
     canvas.save(output_png, format="PNG", dpi=(300, 300))
 
@@ -183,7 +219,7 @@ def process_aadhaar_pdf(
       (Fits completely inside 65x95 mm pouch with 2 mm perfect sealing edge)
     - Zero gap between Front and Back with solid 3px Black folding divider line.
     - Top margin set to exactly 1.0 cm (118 px).
-    - Left margin set to 1.0 cm (118 px) to preserve paper.
+    - Centered horizontally across A4 page.
     """
     input_path = Path(input_pdf_path).resolve()
     temp_dir = Path("/tmp/craft_studio_aadhaar")
@@ -229,7 +265,7 @@ def process_aadhaar_pdf(
     # 1.0 cm from top = 118 px
     margin_top = int(10.0 * PX_PER_MM)
     # Total width of Front + Back touching = 1075 * 2 = 2150 px
-    # Left margin: 165 px (1.4 cm) - leaves right side 165 px
+    # Left margin centered: (2480 - 2150) // 2 = 165 px
     margin_x = (A4_WIDTH_PX - (card_w * 2)) // 2
 
     front_x = margin_x

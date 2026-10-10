@@ -2,7 +2,7 @@
 """
 craft-studio Web UI Server
 Modern, lightweight local web GUI for generating Passport Photos and Aadhaar ID Cards.
-No dependencies required (Pure Python standard library).
+Compatible with Python 3.12+ (no deprecated cgi module).
 """
 
 import http.server
@@ -11,7 +11,8 @@ import json
 import urllib.parse
 import os
 import sys
-import cgi
+import email
+from email.policy import default
 from pathlib import Path
 from engine import make_passport_sheet, process_aadhaar_pdf, print_file
 
@@ -271,6 +272,25 @@ HTML_PAGE = """<!DOCTYPE html>
 </html>
 """
 
+def parse_multipart(headers, rfile):
+    content_type = headers.get('Content-Type', '')
+    length = int(headers.get('Content-Length', 0))
+    data = rfile.read(length)
+    msg_data = f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode('latin1') + data
+    msg = email.message_from_bytes(msg_data, policy=default)
+
+    fields = {}
+    files = {}
+    for part in msg.iter_parts():
+        cd = part.get("Content-Disposition", "")
+        name = part.get_param("name", header="content-disposition")
+        filename = part.get_filename()
+        if filename:
+            files[name] = {"filename": filename, "data": part.get_payload(decode=True)}
+        else:
+            fields[name] = part.get_payload(decode=True).decode('utf-8')
+    return fields, files
+
 class CraftStudioHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -299,18 +319,14 @@ class CraftStudioHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/passport":
-            form = cgi.FieldStorage(
-                fp=self.rfile,
-                headers=self.headers,
-                environ={'REQUEST_METHOD': 'POST', 'CONTENT_TYPE': self.headers['Content-Type']}
-            )
-            file_item = form['file']
-            qty = int(form.getvalue('quantity', '6'))
-            border = form.getvalue('border', '#b0b0b0')
+            fields, files = parse_multipart(self.headers, self.rfile)
+            file_info = files.get('file')
+            qty = int(fields.get('quantity', '6'))
+            border = fields.get('border', '#b0b0b0')
 
-            input_path = UPLOAD_DIR / f"upload_{file_item.filename}"
+            input_path = UPLOAD_DIR / f"upload_{file_info['filename']}"
             with open(input_path, 'wb') as f:
-                f.write(file_item.file.read())
+                f.write(file_info['data'])
 
             out_png = OUTPUT_DIR / "passport_sheet.png"
             out_pdf = OUTPUT_DIR / "passport_sheet.pdf"
@@ -324,17 +340,13 @@ class CraftStudioHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_json({"status": "error", "message": str(e)})
 
         elif parsed.path == "/api/aadhaar":
-            form = cgi.FieldStorage(
-                fp=self.rfile,
-                headers=self.headers,
-                environ={'REQUEST_METHOD': 'POST', 'CONTENT_TYPE': self.headers['Content-Type']}
-            )
-            file_item = form['file']
-            pw = form.getvalue('password', '')
+            fields, files = parse_multipart(self.headers, self.rfile)
+            file_info = files.get('file')
+            pw = fields.get('password', '')
 
-            input_path = UPLOAD_DIR / f"upload_{file_item.filename}"
+            input_path = UPLOAD_DIR / f"upload_{file_info['filename']}"
             with open(input_path, 'wb') as f:
-                f.write(file_item.file.read())
+                f.write(file_info['data'])
 
             out_png = OUTPUT_DIR / "aadhaar_id_sheet.png"
             out_pdf = OUTPUT_DIR / "aadhaar_id_sheet.pdf"
